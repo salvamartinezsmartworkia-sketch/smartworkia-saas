@@ -5,11 +5,13 @@ import PrivateHeader from "@/components/PrivateHeader";
 import PrivateToolFooter from "@/components/PrivateToolFooter";
 import {
   Shield,
+  Sun,
   Moon,
   ShieldAlert,
   ShieldCheck,
   AlertTriangle,
   TrendingUp,
+  CheckCircle,
   CheckCircle2,
   AlertCircle,
   Info,
@@ -19,6 +21,10 @@ import {
   Loader2,
   User,
   Clock,
+  Trash2,
+  Edit2,
+  PieChart as PieChartIcon,
+  Plus,
 } from "lucide-react";
 
 const PROBABILITIES = [
