@@ -9,27 +9,6 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSignUp(e) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage(
-        "Usuario creado correctamente. Revisa tu correo si Supabase pide confirmación."
-      );
-    }
-
-    setLoading(false);
-  }
-
   async function handleSignIn(e) {
     e.preventDefault();
     setLoading(true);
@@ -41,29 +20,12 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setMessage(error.message);
+      setMessage("Email o contraseña incorrectos.");
     } else {
       window.location.href = "/dashboard";
     }
 
     setLoading(false);
-  }
-
-  function handleTemporaryAccess() {
-    const TEMP_PASSWORD = "smartworkia2026";
-
-    if (password !== TEMP_PASSWORD) {
-      setMessage("Clave temporal incorrecta");
-      return;
-    }
-
-    document.cookie =
-      "swia_access=granted; path=/; max-age=86400; samesite=lax";
-
-    const params = new URLSearchParams(window.location.search);
-    const redirect = params.get("redirect") || "/dashboard";
-
-    window.location.href = redirect;
   }
 
   return (
@@ -143,6 +105,8 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="tuemail@empresa.com"
+              autoComplete="email"
+              required
               style={{
                 width: "100%",
                 height: "52px",
@@ -172,6 +136,8 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Tu contraseña"
+              autoComplete="current-password"
+              required
               style={{
                 width: "100%",
                 height: "52px",
@@ -195,46 +161,12 @@ export default function LoginPage() {
               color: "#ffffff",
               fontSize: "16px",
               fontWeight: "700",
-              cursor: "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               marginTop: "4px",
+              opacity: loading ? 0.8 : 1,
             }}
           >
             {loading ? "Entrando..." : "Entrar"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleTemporaryAccess}
-            style={{
-              minHeight: "52px",
-              border: "none",
-              borderRadius: "14px",
-              background: "#1E83E4",
-              color: "#ffffff",
-              fontSize: "16px",
-              fontWeight: "700",
-              cursor: "pointer",
-            }}
-          >
-            Acceso temporal
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSignUp}
-            disabled={loading}
-            style={{
-              minHeight: "52px",
-              borderRadius: "14px",
-              background: "#ffffff",
-              color: "#162C4B",
-              fontSize: "16px",
-              fontWeight: "700",
-              cursor: "pointer",
-              border: "1px solid rgba(22,44,75,0.12)",
-            }}
-          >
-            {loading ? "Procesando..." : "Crear usuario"}
           </button>
         </form>
 
