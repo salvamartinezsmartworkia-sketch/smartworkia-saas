@@ -5,6 +5,7 @@ import PrivateHeader from "@/components/PrivateHeader";
 import PrivateToolFooter from "@/components/PrivateToolFooter";
 import {
   Shield,
+  Moon,
   ShieldAlert,
   ShieldCheck,
   AlertTriangle,
