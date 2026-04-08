@@ -19,53 +19,53 @@ import {
 const CATEGORIES = [
   {
     id: "logistics",
-    title: "Rutas Logísticas y Fletes",
+    title: "Rutas LogÃ­sticas y Fletes",
     icon: Ship,
     color: "bg-blue-500",
     textColor: "text-blue-600",
-    departments: ["Logística", "Finanzas"],
+    departments: ["LogÃ­stica", "Finanzas"],
     questions: [
-      { id: "l1", text: "¿Han cambiado las rutas logísticas relevantes para el proyecto (ej. Mar Rojo)?" },
-      { id: "l2", text: "¿Se detectan subidas en transporte, seguros de guerra o primas?" },
-      { id: "l3", text: "¿Existen retrasos inminentes que puedan romper hitos y alargar capital inmovilizado?" },
+      { id: "l1", text: "Â¿Han cambiado las rutas logÃ­sticas relevantes para el proyecto (ej. Mar Rojo)?" },
+      { id: "l2", text: "Â¿Se detectan subidas en transporte, seguros de guerra o primas?" },
+      { id: "l3", text: "Â¿Existen retrasos inminentes que puedan romper hitos y alargar capital inmovilizado?" },
     ],
   },
   {
     id: "energy",
-    title: "Tensión Energética",
+    title: "TensiÃ³n EnergÃ©tica",
     icon: Zap,
     color: "bg-yellow-500",
     textColor: "text-yellow-600",
     departments: ["Compras", "Finanzas"],
     questions: [
-      { id: "e1", text: "¿Hay nueva tensión en mercados de petróleo/gas que encarezca operaciones?" },
-      { id: "e2", text: "¿Están los proveedores repercutiendo sus sobrecostes energéticos?" },
+      { id: "e1", text: "Â¿Hay nueva tensiÃ³n en mercados de petrÃ³leo/gas que encarezca operaciones?" },
+      { id: "e2", text: "Â¿EstÃ¡n los proveedores repercutiendo sus sobrecostes energÃ©ticos?" },
     ],
   },
   {
     id: "regulatory",
-    title: "Riesgo Político y Legal",
+    title: "Riesgo PolÃ­tico y Legal",
     icon: Scale,
     color: "bg-purple-500",
     textColor: "text-purple-600",
     departments: ["Legal", "Compras", "Finanzas"],
     questions: [
-      { id: "r1", text: "¿Existen nuevas sanciones o restricciones de exportación sobre componentes críticos?" },
-      { id: "r2", text: "¿Han aparecido limitaciones bancarias que amenacen pagos internacionales?" },
-      { id: "r3", text: "¿Se han anunciado cambios arancelarios que alteren el coste base presupuestado?" },
+      { id: "r1", text: "Â¿Existen nuevas sanciones o restricciones de exportaciÃ³n sobre componentes crÃ­ticos?" },
+      { id: "r2", text: "Â¿Han aparecido limitaciones bancarias que amenacen pagos internacionales?" },
+      { id: "r3", text: "Â¿Se han anunciado cambios arancelarios que alteren el coste base presupuestado?" },
     ],
   },
   {
     id: "inflation",
-    title: "Inflación y Desfase",
+    title: "InflaciÃ³n y Desfase",
     icon: TrendingUp,
     color: "bg-red-500",
     textColor: "text-red-600",
     departments: ["Compras", "Ventas", "Finanzas"],
     questions: [
-      { id: "i1", text: "¿Hay proveedores que ya están repercutiendo más coste?" },
-      { id: "i2", text: "¿Están bajo amenaza las partidas sensibles a picos de precio por shocks externos?" },
-      { id: "i3", text: "¿Ha ocurrido algún shock externo reciente que podría trasladarse como sobrecoste en 3-6 meses?" },
+      { id: "i1", text: "Â¿Hay proveedores que ya estÃ¡n repercutiendo mÃ¡s coste?" },
+      { id: "i2", text: "Â¿EstÃ¡n bajo amenaza las partidas sensibles a picos de precio por shocks externos?" },
+      { id: "i3", text: "Â¿Ha ocurrido algÃºn shock externo reciente que podrÃ­a trasladarse como sobrecoste en 3-6 meses?" },
     ],
   },
 ];
@@ -76,6 +76,68 @@ const RISK_LEVELS = {
   2: { label: "Medio", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
   3: { label: "Alto", color: "bg-red-100 text-red-700 border-red-300" },
 };
+
+function RadarChartView({ categoryScores }) {
+  const size = 240;
+  const center = size / 2;
+  const maxRadius = 90;
+
+  const getPoint = (score, angleDeg) => {
+    const r = (score / 100) * maxRadius;
+    const angleRad = (angleDeg - 90) * (Math.PI / 180);
+    return `${center + r * Math.cos(angleRad)},${center + r * Math.sin(angleRad)}`;
+  };
+
+  const points = [
+    getPoint(categoryScores.logistics, 0),
+    getPoint(categoryScores.energy, 90),
+    getPoint(categoryScores.regulatory, 180),
+    getPoint(categoryScores.inflation, 270),
+  ].join(" ");
+
+  return (
+    <div className="relative flex justify-center items-center h-64 w-full">
+      <svg width={size} height={size} className="overflow-visible">
+        {[25, 50, 75, 100].map((tick) => (
+          <polygon
+            key={tick}
+            points={`${getPoint(tick, 0)} ${getPoint(tick, 90)} ${getPoint(tick, 180)} ${getPoint(tick, 270)}`}
+            fill="none"
+            stroke="#e5e7eb"
+            strokeWidth="1"
+            strokeDasharray={tick === 100 ? "0" : "4 4"}
+          />
+        ))}
+        <line x1={center} y1={center - maxRadius} x2={center} y2={center + maxRadius} stroke="#d1d5db" strokeWidth="1" />
+        <line x1={center - maxRadius} y1={center} x2={center + maxRadius} y2={center} stroke="#d1d5db" strokeWidth="1" />
+        <polygon
+          points={points}
+          fill="rgba(239, 68, 68, 0.2)"
+          stroke="#ef4444"
+          strokeWidth="3"
+          strokeLinejoin="round"
+        />
+        <circle cx={getPoint(categoryScores.logistics, 0).split(",")[0]} cy={getPoint(categoryScores.logistics, 0).split(",")[1]} r="4" fill="#ef4444" />
+        <circle cx={getPoint(categoryScores.energy, 90).split(",")[0]} cy={getPoint(categoryScores.energy, 90).split(",")[1]} r="4" fill="#ef4444" />
+        <circle cx={getPoint(categoryScores.regulatory, 180).split(",")[0]} cy={getPoint(categoryScores.regulatory, 180).split(",")[1]} r="4" fill="#ef4444" />
+        <circle cx={getPoint(categoryScores.inflation, 270).split(",")[0]} cy={getPoint(categoryScores.inflation, 270).split(",")[1]} r="4" fill="#ef4444" />
+      </svg>
+
+      <div className="absolute top-0 text-xs font-semibold text-blue-600 flex flex-col items-center -mt-4">
+        <Ship size={14} /> LogÃ­stica
+      </div>
+      <div className="absolute right-0 text-xs font-semibold text-yellow-600 flex flex-col items-center -mr-8">
+        <Zap size={14} /> EnergÃ­a
+      </div>
+      <div className="absolute bottom-0 text-xs font-semibold text-purple-600 flex flex-col items-center -mb-4">
+        <Scale size={14} /> Legal
+      </div>
+      <div className="absolute left-0 text-xs font-semibold text-red-600 flex flex-col items-center -ml-10">
+        <TrendingUp size={14} /> InflaciÃ³n
+      </div>
+    </div>
+  );
+}
 
 export default function ProjectRiskRadarPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -125,70 +187,6 @@ export default function ProjectRiskRadarPage() {
     }));
   };
 
-  const RadarChart = () => {
-    const size = 240;
-    const center = size / 2;
-    const maxRadius = 90;
-
-    const getPoint = (score, angleDeg) => {
-      const r = (score / 100) * maxRadius;
-      const angleRad = (angleDeg - 90) * (Math.PI / 180);
-      return `${center + r * Math.cos(angleRad)},${center + r * Math.sin(angleRad)}`;
-    };
-
-    const points = [
-      getPoint(categoryScores.logistics, 0),
-      getPoint(categoryScores.energy, 90),
-      getPoint(categoryScores.regulatory, 180),
-      getPoint(categoryScores.inflation, 270),
-    ].join(" ");
-
-    return (
-      <div className="relative flex justify-center items-center h-64 w-full">
-        <svg width={size} height={size} className="overflow-visible">
-          {[25, 50, 75, 100].map((tick) => (
-            <polygon
-              key={tick}
-              points={`${getPoint(tick, 0)} ${getPoint(tick, 90)} ${getPoint(tick, 180)} ${getPoint(tick, 270)}`}
-              fill="none"
-              stroke="#e5e7eb"
-              strokeWidth="1"
-              strokeDasharray={tick === 100 ? "0" : "4 4"}
-            />
-          ))}
-          <line x1={center} y1={center - maxRadius} x2={center} y2={center + maxRadius} stroke="#d1d5db" strokeWidth="1" />
-          <line x1={center - maxRadius} y1={center} x2={center + maxRadius} y2={center} stroke="#d1d5db" strokeWidth="1" />
-
-          <polygon
-            points={points}
-            fill="rgba(239, 68, 68, 0.2)"
-            stroke="#ef4444"
-            strokeWidth="3"
-            strokeLinejoin="round"
-          />
-
-          <circle cx={getPoint(categoryScores.logistics, 0).split(",")[0]} cy={getPoint(categoryScores.logistics, 0).split(",")[1]} r="4" fill="#ef4444" />
-          <circle cx={getPoint(categoryScores.energy, 90).split(",")[0]} cy={getPoint(categoryScores.energy, 90).split(",")[1]} r="4" fill="#ef4444" />
-          <circle cx={getPoint(categoryScores.regulatory, 180).split(",")[0]} cy={getPoint(categoryScores.regulatory, 180).split(",")[1]} r="4" fill="#ef4444" />
-          <circle cx={getPoint(categoryScores.inflation, 270).split(",")[0]} cy={getPoint(categoryScores.inflation, 270).split(",")[1]} r="4" fill="#ef4444" />
-        </svg>
-
-        <div className="absolute top-0 text-xs font-semibold text-blue-600 flex flex-col items-center -mt-4">
-          <Ship size={14} /> Logística
-        </div>
-        <div className="absolute right-0 text-xs font-semibold text-yellow-600 flex flex-col items-center -mr-8">
-          <Zap size={14} /> Energía
-        </div>
-        <div className="absolute bottom-0 text-xs font-semibold text-purple-600 flex flex-col items-center -mb-4">
-          <Scale size={14} /> Legal
-        </div>
-        <div className="absolute left-0 text-xs font-semibold text-red-600 flex flex-col items-center -ml-10">
-          <TrendingUp size={14} /> Inflación
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
       <PrivateHeader />
@@ -222,7 +220,7 @@ export default function ProjectRiskRadarPage() {
                     : "text-slate-300 hover:text-white hover:bg-slate-700"
                 }`}
               >
-                <Save size={16} /> Evaluación Periódica
+                <Save size={16} /> EvaluaciÃ³n PeriÃ³dica
               </button>
             </div>
           </div>
@@ -245,7 +243,7 @@ export default function ProjectRiskRadarPage() {
                     <Activity size={24} />
                   </div>
                   <div>
-                    <p className="text-sm text-slate-500 font-medium">Índice de Riesgo Global</p>
+                    <p className="text-sm text-slate-500 font-medium">Ãndice de Riesgo Global</p>
                     <p className="text-3xl font-bold">{globalRiskScore}%</p>
                   </div>
                 </div>
@@ -255,9 +253,9 @@ export default function ProjectRiskRadarPage() {
                     <Users size={24} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-slate-500 font-medium">Comité de Riesgos Requerido</p>
+                    <p className="text-sm text-slate-500 font-medium">ComitÃ© de Riesgos Requerido</p>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {["Compras", "Logística", "Ventas", "Finanzas"].map((dept) => (
+                      {["Compras", "LogÃ­stica", "Ventas", "Finanzas"].map((dept) => (
                         <span
                           key={dept}
                           className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200"
@@ -272,8 +270,8 @@ export default function ProjectRiskRadarPage() {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                  <h3 className="text-lg font-bold text-slate-800 mb-6 text-center">Exposición al Entorno</h3>
-                  <RadarChart />
+                  <h3 className="text-lg font-bold text-slate-800 mb-6 text-center">ExposiciÃ³n al Entorno</h3>
+                  <RadarChartView categoryScores={categoryScores} />
                   <div className="grid grid-cols-2 gap-4 mt-6">
                     {CATEGORIES.map((cat) => (
                       <div key={cat.id} className="flex flex-col">
@@ -312,7 +310,7 @@ export default function ProjectRiskRadarPage() {
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                       <AlertTriangle className="text-red-500" size={20} />
-                      Alertas Críticas (Impacto en Margen)
+                      Alertas CrÃ­ticas (Impacto en Margen)
                     </h3>
                     <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">
                       {highRiskItems.length} detectadas
@@ -323,7 +321,7 @@ export default function ProjectRiskRadarPage() {
                     {highRiskItems.length === 0 ? (
                       <div className="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
                         <CheckCircle size={32} className="text-green-400 mb-2" />
-                        <p>No hay alertas críticas en el radar actual.</p>
+                        <p>No hay alertas crÃ­ticas en el radar actual.</p>
                         <p className="text-xs mt-1">
                           El margen del proyecto parece seguro frente a shocks externos a corto plazo.
                         </p>
@@ -346,7 +344,7 @@ export default function ProjectRiskRadarPage() {
                               </p>
                               {item.notes && (
                                 <div className="mt-2 text-xs bg-white p-2 rounded border border-red-100 text-slate-600 italic">
-                                  "{item.notes}"
+                                  &ldquo;{item.notes}&rdquo;
                                 </div>
                               )}
                               <div className="mt-3 flex gap-1 flex-wrap">
@@ -373,9 +371,9 @@ export default function ProjectRiskRadarPage() {
           {activeTab === "assessment" && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h2 className="text-xl font-bold text-slate-800 mb-2">Cuestionario de Vigilancia Práctica</h2>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">Cuestionario de Vigilancia PrÃ¡ctica</h2>
                 <p className="text-slate-500 mb-6">
-                  Evalúa los indicadores externos para prever sobrecostes. Rompe el trabajo en silos colaborando con otros departamentos.
+                  EvalÃºa los indicadores externos para prever sobrecostes. Rompe el trabajo en silos colaborando con otros departamentos.
                 </p>
 
                 <div className="space-y-8">
@@ -449,7 +447,7 @@ export default function ProjectRiskRadarPage() {
 
                               <div className="lg:w-1/3">
                                 <textarea
-                                  placeholder="Añadir observaciones, detalles de proveedores o impactos previstos..."
+                                  placeholder="AÃ±adir observaciones, detalles de proveedores o impactos previstos..."
                                   value={assessments[question.id].notes}
                                   onChange={(e) =>
                                     handleAssessmentChange(question.id, "notes", e.target.value)

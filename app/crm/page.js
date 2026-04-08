@@ -158,6 +158,63 @@ const reorderArray = (list, startIndex, endIndex) => {
   return result;
 };
 
+const createUniqueId = (prefix = "") => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `${prefix}${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+};
+
+const createHistoryEntry = (type, details) => ({
+  id: createUniqueId("history-"),
+  date: new Date().toISOString(),
+  type,
+  details,
+});
+
+const createEmptyLead = (captureSources, pipelineStages) => {
+  const timestamp = new Date().toISOString();
+
+  return {
+    id: createUniqueId("lead-"),
+    name: '',
+    company: '',
+    email: '',
+    phone: '',
+    captureSource: captureSources[0]?.label || '',
+    campaign: '',
+    utmSource: '',
+    utmMedium: '',
+    utmCampaign: '',
+    entryLevel: 'Starter',
+    recommendedLevel: 'Pendiente',
+    status: pipelineStages[0]?.title || 'Nuevo Lead',
+    callStatus: 'No agendada',
+    owner: 'Yo',
+    value: 0,
+    probability: 10,
+    lostReason: '',
+    recycleDate: '',
+    recycleNotes: '',
+    painPoint: '',
+    businessImpact: '',
+    attemptedSolutions: '',
+    urgency: 'Media',
+    fit: 'Pendiente',
+    nextAction: '',
+    nextActionType: 'Llamada',
+    nextActionDate: '',
+    nextActionPriority: 'Normal',
+    links: { website: '', linkedin: '', proposal: '' },
+    notes: '',
+    createdAt: timestamp,
+    lastContactDate: timestamp,
+    stageEnteredAt: timestamp,
+    history: [],
+  };
+};
+
 // --- COMPONENTES AUXILIARES ---
 const Badge = ({ children, colorClass, icon: Icon }) => (
   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold tracking-wide uppercase border ${colorClass}`}>
@@ -343,27 +400,11 @@ useEffect(() => {
     };
   }, [leads, activeLeads, pipelineStages]);
 
-  // --- MANEJADORES ---
-  const createHistoryEntry = (type, details) => ({
-    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-    date: new Date().toISOString(), type, details
-  });
-
   const openLeadModal = (lead = null) => {
     if (lead) {
       setSelectedLead({ ...lead });
     } else {
-      setSelectedLead({
-        id: Date.now().toString(), name: '', company: '', email: '', phone: '',
-        captureSource: captureSources[0]?.label || '', campaign: '', utmSource: '', utmMedium: '', utmCampaign: '',
-        entryLevel: 'Starter', recommendedLevel: 'Pendiente',
-        status: pipelineStages[0]?.title || 'Nuevo Lead', callStatus: 'No agendada', owner: 'Yo',
-        value: 0, probability: 10, lostReason: '', recycleDate: '', recycleNotes: '',
-        painPoint: '', businessImpact: '', attemptedSolutions: '', urgency: 'Media', fit: 'Pendiente',
-        nextAction: '', nextActionType: 'Llamada', nextActionDate: '', nextActionPriority: 'Normal',
-        links: { website: '', linkedin: '', proposal: '' }, notes: '',
-        createdAt: new Date().toISOString(), lastContactDate: new Date().toISOString(), stageEnteredAt: new Date().toISOString(), history: []
-      });
+      setSelectedLead(createEmptyLead(captureSources, pipelineStages));
     }
     setModalTab('general');
     setNewNote('');
@@ -1220,7 +1261,9 @@ const saveLead = async (e) => {
                   <div className="bg-gradient-to-r from-[#162C4B] to-[#1E83E4] p-5 rounded-2xl text-white shadow-md relative overflow-hidden">
                     <div className="relative z-10">
                       <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2 text-blue-200"><Sparkles className="w-4 h-4"/> Resumen Ejecutivo (Auto)</h3>
-                      <p className="text-sm font-medium leading-relaxed italic opacity-90">"{generateAISummary()}"</p>
+                      <p className="text-sm font-medium leading-relaxed italic opacity-90">
+                        &ldquo;{generateAISummary()}&rdquo;
+                      </p>
                     </div>
                   </div>
 

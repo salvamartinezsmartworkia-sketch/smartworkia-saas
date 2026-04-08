@@ -1,22 +1,49 @@
 import { NextResponse } from "next/server";
+import {
+  ADMIN_COOKIE_NAME,
+  ADMIN_COOKIE_VALUE,
+  AUTH_COOKIE_NAME,
+  AUTH_COOKIE_VALUE,
+  DEMO_COOKIE_NAME,
+  DEMO_COOKIE_VALUE,
+} from "@/lib/auth";
 
 export function proxy(request) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
 
   const isPrivateRoute =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/tools") ||
-    pathname.startsWith("/crm");
+    pathname.startsWith("/crm") ||
+    pathname.startsWith("/admin");
+  const isAdminRoute = pathname.startsWith("/admin");
 
   if (!isPrivateRoute) {
     return NextResponse.next();
   }
 
-  const accessCookie = request.cookies.get("swia_access");
+  const authCookie = request.cookies.get(AUTH_COOKIE_NAME);
+  const demoCookie = request.cookies.get(DEMO_COOKIE_NAME);
+  const adminCookie = request.cookies.get(ADMIN_COOKIE_NAME);
+  const hasSupabaseAccess = authCookie?.value === AUTH_COOKIE_VALUE;
+  const hasDemoAccess = demoCookie?.value === DEMO_COOKIE_VALUE;
+  const hasAdminAccess = adminCookie?.value === ADMIN_COOKIE_VALUE;
 
-  if (!accessCookie || accessCookie.value !== "granted") {
+  if (isAdminRoute) {
+    if (!hasSupabaseAccess) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", `${pathname}${search}`);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (!hasAdminAccess) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
+  if (!isAdminRoute && !hasSupabaseAccess && !hasDemoAccess) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
+    loginUrl.searchParams.set("redirect", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -24,5 +51,5 @@ export function proxy(request) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/tools/:path*", "/crm/:path*"],
+  matcher: ["/dashboard/:path*", "/tools/:path*", "/crm/:path*", "/admin/:path*"],
 };

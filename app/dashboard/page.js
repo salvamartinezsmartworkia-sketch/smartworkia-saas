@@ -52,6 +52,8 @@ const statusLabels = {
   hidden: "hidden",
 };
 
+const VISIBLE_STATUSES = ["active", "demo", "premium"];
+
 const iconMap = {
   wallet: Wallet,
   alert: AlertTriangle,
@@ -256,14 +258,12 @@ export default function DashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
 
-  const visibleStatuses = ["active", "demo", "premium"];
-
   const baseTools = useMemo(() => {
     return toolsRegistry
       .filter(
         (tool) =>
           tool.visibility === "public_internal" &&
-          visibleStatuses.includes(tool.status)
+          VISIBLE_STATUSES.includes(tool.status)
       )
       .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   }, []);

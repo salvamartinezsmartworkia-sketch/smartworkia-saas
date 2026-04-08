@@ -1,5 +1,45 @@
 "use client";
 
+import Link from "next/link";
+
+const navigationLinks = [
+  { label: "Inicio", href: "/" },
+  { label: "Recursos" },
+  { label: "Sobre mÃ­" },
+  {
+    label: "DiagnÃ³stico",
+    href: "https://www.smartworkia.com/diagnostico",
+    external: true,
+  },
+  { label: "Blog" },
+];
+
+const accessLinks = [
+  { label: "Zona privada", href: "/login" },
+  { label: "Dashboard", href: "/dashboard" },
+  { label: "Herramientas", href: "/dashboard" },
+];
+
+function FooterLink({ item }) {
+  if (!item.href) {
+    return (
+      <span aria-disabled="true" className="swia-footer-disabled">
+        {item.label}
+      </span>
+    );
+  }
+
+  if (item.external) {
+    return (
+      <a href={item.href} target="_blank" rel="noopener noreferrer">
+        {item.label}
+      </a>
+    );
+  }
+
+  return <Link href={item.href}>{item.label}</Link>;
+}
+
 export default function PublicFooter() {
   return (
     <>
@@ -7,37 +47,35 @@ export default function PublicFooter() {
         <div className="swia-footer-container">
           <div className="swia-footer-top">
             <div className="swia-footer-brand">
-              <a href="/" className="swia-footer-logo">
+              <Link href="/" className="swia-footer-logo">
                 <img src="https://i.imgur.com/6og0aLG.png" alt="SmartWorkIA" />
-              </a>
+              </Link>
 
               <p className="swia-footer-text">
                 Inteligencia Artificial Aplicada para convertir ideas, procesos y
-                datos en decisiones más inteligentes.
+                datos en decisiones mÃ¡s inteligentes.
               </p>
             </div>
 
             <div className="swia-footer-links">
               <div className="swia-footer-column">
-                <span className="swia-footer-title">Navegación</span>
-                <a href="/">Inicio</a>
-                <a href="/recursos">Recursos</a>
-                <a href="/sobre-mi">Sobre mí</a>
-                <a href="/diagnostico">Diagnóstico</a>
-                <a href="/blog">Blog</a>
+                <span className="swia-footer-title">NavegaciÃ³n</span>
+                {navigationLinks.map((item) => (
+                  <FooterLink key={item.label} item={item} />
+                ))}
               </div>
 
               <div className="swia-footer-column">
                 <span className="swia-footer-title">Acceso</span>
-                <a href="/login">Zona privada</a>
-                <a href="/dashboard">Dashboard</a>
-                <a href="/herramientas">Herramientas</a>
+                {accessLinks.map((item) => (
+                  <FooterLink key={item.label} item={item} />
+                ))}
               </div>
 
               <div className="swia-footer-column">
                 <span className="swia-footer-title">SmartWorkIA</span>
                 <span className="swia-footer-note">
-                  Plataforma privada para clientes, recursos, diagnósticos y
+                  Plataforma privada para clientes, recursos, diagnÃ³sticos y
                   herramientas inteligentes.
                 </span>
               </div>
@@ -45,7 +83,7 @@ export default function PublicFooter() {
           </div>
 
           <div className="swia-footer-bottom">
-            <span>© 2026 SmartWorkIA. Todos los derechos reservados.</span>
+            <span>Â© 2026 SmartWorkIA. Todos los derechos reservados.</span>
             <span>Built with strategy, IA & criterio real.</span>
           </div>
         </div>
@@ -118,7 +156,8 @@ export default function PublicFooter() {
           margin-bottom: 6px;
         }
 
-        .swia-footer-column a {
+        .swia-footer-column :global(a),
+        .swia-footer-disabled {
           color: rgba(255, 255, 255, 0.9);
           text-decoration: none;
           font-size: 16px;
@@ -126,8 +165,13 @@ export default function PublicFooter() {
           transition: color 0.2s ease;
         }
 
-        .swia-footer-column a:hover {
+        .swia-footer-column :global(a:hover) {
           color: #ffffff;
+        }
+
+        .swia-footer-disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
         }
 
         .swia-footer-note {

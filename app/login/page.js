@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { resolveClientUserAccess } from "@/lib/access-client";
 import { supabase } from "@/lib/supabase";
+import {
+  clearAccessCookies,
+  clearAdminAccessCookie,
+  enableAdminAccessCookie,
+  enableSupabaseAccessCookie,
+  resolveLoginRedirect,
+} from "@/lib/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,16 +21,32 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
+    clearAccessCookies();
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      setMessage("Email o contraseña incorrectos.");
+      setMessage("Email o contraseÃ±a incorrectos.");
     } else {
-      window.location.href = "/dashboard";
+      const access = await resolveClientUserAccess(data.user);
+      enableSupabaseAccessCookie();
+
+      if (access.isAdmin) {
+        enableAdminAccessCookie();
+      } else {
+        clearAdminAccessCookie();
+      }
+
+      const redirectTarget = resolveLoginRedirect("/dashboard");
+      const safeRedirect =
+        redirectTarget.startsWith("/admin") && !access.isAdmin
+          ? "/dashboard"
+          : redirectTarget;
+
+      window.location.href = safeRedirect;
     }
 
     setLoading(false);
@@ -60,7 +84,7 @@ export default function LoginPage() {
             color: "#1E83E4",
           }}
         >
-          SMARTWORKIA · ACCESO
+          SMARTWORKIA Â· ACCESO
         </span>
 
         <h1
@@ -73,7 +97,7 @@ export default function LoginPage() {
             margin: "0 0 12px",
           }}
         >
-          Iniciar sesión
+          Iniciar sesiÃ³n
         </h1>
 
         <p
@@ -129,13 +153,13 @@ export default function LoginPage() {
                 color: "#162C4B",
               }}
             >
-              Contraseña
+              ContraseÃ±a
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Tu contraseña"
+              placeholder="Tu contraseÃ±a"
               autoComplete="current-password"
               required
               style={{

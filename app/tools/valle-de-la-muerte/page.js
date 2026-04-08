@@ -355,7 +355,7 @@ export default function ValleDeLaMuertePage() {
                 Simulador de Estrategia de Flujo de Caja
               </p>
               <p className="text-white/50 text-sm md:text-lg leading-relaxed border-l-4 border-[#1E83E4] pl-8 font-light italic max-w-2xl">
-                "Esta herramienta permite comparar el impacto de distintas estructuras contractuales sobre la caja del proyecto."
+                &ldquo;Esta herramienta permite comparar el impacto de distintas estructuras contractuales sobre la caja del proyecto.&rdquo;
               </p>
             </div>
 
@@ -662,7 +662,7 @@ export default function ValleDeLaMuertePage() {
               Evolución de Liquidez Neta Acumulada
             </h3>
             <p className="text-sm text-gray-400 mb-12 italic">
-              El área sombreada representa el "Valle de la Muerte": dinero que debes adelantar tú.
+              El área sombreada representa el &ldquo;Valle de la Muerte&rdquo;: dinero que debes adelantar tú.
             </p>
 
             <div className="w-full h-[450px]">
@@ -779,3 +779,4 @@ export default function ValleDeLaMuertePage() {
     </>
   );
 }
+

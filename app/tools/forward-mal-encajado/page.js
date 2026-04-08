@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import PrivateHeader from "@/components/PrivateHeader";
 import PrivateToolFooter from "@/components/PrivateToolFooter";
 import {
@@ -25,15 +25,6 @@ export default function ForwardMalEncajadoPage() {
     isCancelled: false,
     adjustmentCostPct: 1.5,
     expectedMarginPct: 15,
-  });
-
-  const [metrics, setMetrics] = useState({
-    daysDifference: 0,
-    scenario: "retraso",
-    baseMargin: 0,
-    adjustmentCost: 0,
-    finalMargin: 0,
-    finalMarginPct: 0,
   });
 
   const loadPreset = (preset) => {
@@ -80,7 +71,7 @@ export default function ForwardMalEncajadoPage() {
     }
   };
 
-  useEffect(() => {
+  const metrics = useMemo(() => {
     const {
       amount,
       forwardDate,
@@ -115,14 +106,14 @@ export default function ForwardMalEncajadoPage() {
       ? -adjustmentCostPct
       : expectedMarginPct - adjustmentCostPct;
 
-    setMetrics({
+    return {
       daysDifference: Math.abs(daysDiff),
       scenario: currentScenario,
       baseMargin: baseMarginVal,
       adjustmentCost: adjustmentCostVal,
       finalMargin: finalMarginVal,
       finalMarginPct: finalMarginPercent,
-    });
+    };
   }, [inputs]);
 
   const handleChange = (e) => {
