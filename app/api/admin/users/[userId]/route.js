@@ -73,7 +73,17 @@ export async function PATCH(request, { params }) {
   }
 
   const userId = params.userId;
-  const body = await request.json();
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "El cuerpo de la petición no es JSON válido." },
+      { status: 400 }
+    );
+  }
+
   const changes = {};
 
   if ("role" in body) {
@@ -125,8 +135,11 @@ export async function PATCH(request, { params }) {
 
     return NextResponse.json({ user });
   } catch (error) {
+    const message =
+      error?.message || "No se pudo actualizar el usuario en Supabase Auth.";
+
     return NextResponse.json(
-      { error: error.message || "No se pudo actualizar el usuario." },
+      { error: message },
       { status: 500 }
     );
   }
