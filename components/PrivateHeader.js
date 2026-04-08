@@ -8,16 +8,21 @@ import {
   clearAccessCookies,
   clearAdminAccessCookie,
   enableAdminAccessCookie,
+  enablePlanAccessCookie,
+  enableSupabaseAccessCookie,
 } from "@/lib/auth";
 
 export default function PrivateHeader() {
   useEffect(() => {
     let isMounted = true;
 
-    async function syncAdminCookie() {
+    async function syncAccessCookies() {
       const access = await resolveClientUserAccess();
 
       if (!isMounted) return;
+
+      enableSupabaseAccessCookie();
+      enablePlanAccessCookie(access.plan);
 
       if (access.isAdmin) {
         enableAdminAccessCookie();
@@ -26,7 +31,7 @@ export default function PrivateHeader() {
       }
     }
 
-    syncAdminCookie();
+    syncAccessCookies();
 
     return () => {
       isMounted = false;

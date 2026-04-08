@@ -1,12 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PrivateHeader from "@/components/PrivateHeader";
+import { resolveClientUserAccess } from "@/lib/access-client";
 import {
+  getToolBySlug,
+  getToolRequiredPlan,
   toolsRegistry,
   toolCategories,
   toolDomains,
 } from "@/lib/tools-registry";
+import { canAccessPlan, getPlanLabel } from "@/lib/user-access";
 import {
   Wallet,
   AlertTriangle,
@@ -257,16 +261,55 @@ export default function DashboardPage() {
   const [selectedDomain, setSelectedDomain] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [access, setAccess] = useState(null);
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [restrictedContext, setRestrictedContext] = useState({
+    slug: null,
+    requiredPlan: null,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAccess() {
+      const nextAccess = await resolveClientUserAccess();
+      const params = new URLSearchParams(window.location.search);
+
+      if (!isMounted) {
+        return;
+      }
+
+      setAccess(nextAccess);
+      setAccessLoading(false);
+      setRestrictedContext({
+        slug: params.get("restricted"),
+        requiredPlan: params.get("requiredPlan"),
+      });
+    }
+
+    loadAccess();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const currentPlan = access?.plan || "starter";
+  const restrictedSlug = restrictedContext.slug;
+  const restrictedTool = restrictedSlug ? getToolBySlug(restrictedSlug) : null;
+  const requiredRestrictedPlan = restrictedContext.requiredPlan;
 
   const baseTools = useMemo(() => {
     return toolsRegistry
       .filter(
         (tool) =>
           tool.visibility === "public_internal" &&
-          VISIBLE_STATUSES.includes(tool.status)
+          VISIBLE_STATUSES.includes(tool.status) &&
+          !accessLoading &&
+          canAccessPlan(currentPlan, getToolRequiredPlan(tool))
       )
       .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-  }, []);
+  }, [accessLoading, currentPlan]);
 
   const filteredTools = useMemo(() => {
     return baseTools.filter((tool) => {
@@ -315,6 +358,7 @@ export default function DashboardPage() {
     selectedDomain !== "all" ||
     selectedCategory !== "all" ||
     selectedStatus !== "all";
+  const planLabel = getPlanLabel(currentPlan);
 
   return (
     <>
@@ -357,6 +401,17 @@ export default function DashboardPage() {
                   >
                     Ver opciones de acceso
                   </a>
+                </div>
+
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-white">
+                    Plan actual: {planLabel}
+                  </span>
+                  {accessLoading && (
+                    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300">
+                      Cargando accesos por plan...
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -417,6 +472,33 @@ export default function DashboardPage() {
         </section>
 
         <main className="max-w-7xl mx-auto px-6 py-10 space-y-10">
+          {restrictedTool && (
+            <section className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-700">
+                    Acceso restringido
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">
+                    {restrictedTool.title} no estÃ¡ disponible con tu plan actual
+                  </h2>
+                  <p className="mt-2 text-slate-700">
+                    Tu acceso actual es {planLabel}. Esta herramienta requiere como mÃ­nimo el plan{" "}
+                    {getPlanLabel(requiredRestrictedPlan || getToolRequiredPlan(restrictedTool))}.
+                  </p>
+                </div>
+
+                <a
+                  href="/acceso"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white no-underline hover:bg-slate-800 transition-all"
+                >
+                  Ver opciones de upgrade
+                  <ChevronRight className="w-4 h-4" />
+                </a>
+              </div>
+            </section>
+          )}
+
           <section>
             <div className="mb-5">
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500 mb-3">

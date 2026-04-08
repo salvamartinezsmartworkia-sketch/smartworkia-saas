@@ -7,6 +7,7 @@ import {
   clearAccessCookies,
   clearAdminAccessCookie,
   enableAdminAccessCookie,
+  enablePlanAccessCookie,
   enableSupabaseAccessCookie,
   resolveLoginRedirect,
 } from "@/lib/auth";
@@ -33,6 +34,7 @@ export default function LoginPage() {
     } else {
       const access = await resolveClientUserAccess(data.user);
       enableSupabaseAccessCookie();
+      enablePlanAccessCookie(access.plan);
 
       if (access.isAdmin) {
         enableAdminAccessCookie();

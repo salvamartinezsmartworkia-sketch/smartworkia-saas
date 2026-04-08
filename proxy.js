@@ -6,7 +6,10 @@ import {
   AUTH_COOKIE_VALUE,
   DEMO_COOKIE_NAME,
   DEMO_COOKIE_VALUE,
+  PLAN_COOKIE_NAME,
 } from "@/lib/auth";
+import { canAccessPlan, normalizePlan } from "@/lib/user-access";
+import { getToolBySlug, getToolRequiredPlan } from "@/lib/tools-registry";
 
 export function proxy(request) {
   const { pathname, search } = request.nextUrl;
@@ -25,6 +28,7 @@ export function proxy(request) {
   const authCookie = request.cookies.get(AUTH_COOKIE_NAME);
   const demoCookie = request.cookies.get(DEMO_COOKIE_NAME);
   const adminCookie = request.cookies.get(ADMIN_COOKIE_NAME);
+  const planCookie = request.cookies.get(PLAN_COOKIE_NAME);
   const hasSupabaseAccess = authCookie?.value === AUTH_COOKIE_VALUE;
   const hasDemoAccess = demoCookie?.value === DEMO_COOKIE_VALUE;
   const hasAdminAccess = adminCookie?.value === ADMIN_COOKIE_VALUE;
@@ -45,6 +49,26 @@ export function proxy(request) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (!isAdminRoute && pathname.startsWith("/tools/")) {
+    const segments = pathname.split("/").filter(Boolean);
+    const toolSlug = segments[1];
+    const tool = getToolBySlug(toolSlug);
+
+    if (tool) {
+      const currentPlan = hasSupabaseAccess
+        ? normalizePlan(planCookie?.value)
+        : "starter";
+      const requiredPlan = getToolRequiredPlan(tool);
+
+      if (!canAccessPlan(currentPlan, requiredPlan)) {
+        const dashboardUrl = new URL("/dashboard", request.url);
+        dashboardUrl.searchParams.set("restricted", tool.slug);
+        dashboardUrl.searchParams.set("requiredPlan", requiredPlan);
+        return NextResponse.redirect(dashboardUrl);
+      }
+    }
   }
 
   return NextResponse.next();
