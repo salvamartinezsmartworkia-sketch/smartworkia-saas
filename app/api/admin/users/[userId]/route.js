@@ -1,32 +1,72 @@
 import { NextResponse } from "next/server";
 import {
-  createAdminSupabaseClient,
-  hasServiceRoleConfigured,
-  readProfilesMap,
+  getManagedUserById,
+  hasPrivilegedAdminKey,
   requireAdminRequest,
-  updateProfileIfPresent,
+  updateManagedUser,
+  writeAdminAuditLog,
 } from "@/lib/supabase-admin";
-import { buildUserAccess, normalizePlan } from "@/lib/user-access";
+import { normalizePlan, normalizeRole } from "@/lib/user-access";
+
+function unauthorizedResponse() {
+  return NextResponse.json({ error: "No autenticado." }, { status: 401 });
+}
+
+function forbiddenResponse() {
+  return NextResponse.json(
+    { error: "Acceso reservado a administradores." },
+    { status: 403 }
+  );
+}
+
+export async function GET(request, { params }) {
+  const context = await requireAdminRequest(request);
+
+  if (context.error === "missing_token" || context.error === "invalid_user") {
+    return unauthorizedResponse();
+  }
+
+  if (context.error === "forbidden") {
+    return forbiddenResponse();
+  }
+
+  if (!hasPrivilegedAdminKey()) {
+    return NextResponse.json(
+      {
+        error:
+          "Configura SUPABASE_SECRET_KEY o SUPABASE_SERVICE_ROLE_KEY para leer usuarios desde /admin.",
+      },
+      { status: 503 }
+    );
+  }
+
+  try {
+    const user = await getManagedUserById(params.userId);
+    return NextResponse.json({ user });
+  } catch {
+    return NextResponse.json(
+      { error: "No se ha encontrado el usuario." },
+      { status: 404 }
+    );
+  }
+}
 
 export async function PATCH(request, { params }) {
   const context = await requireAdminRequest(request);
 
   if (context.error === "missing_token" || context.error === "invalid_user") {
-    return NextResponse.json({ error: "No autenticado." }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   if (context.error === "forbidden") {
-    return NextResponse.json(
-      { error: "Acceso reservado a administradores." },
-      { status: 403 }
-    );
+    return forbiddenResponse();
   }
 
-  if (!hasServiceRoleConfigured()) {
+  if (!hasPrivilegedAdminKey()) {
     return NextResponse.json(
       {
         error:
-          "La edición de usuarios requiere SUPABASE_SERVICE_ROLE_KEY en el servidor.",
+          "Configura SUPABASE_SECRET_KEY o SUPABASE_SERVICE_ROLE_KEY para editar usuarios desde /admin.",
       },
       { status: 503 }
     );
@@ -34,59 +74,60 @@ export async function PATCH(request, { params }) {
 
   const userId = params.userId;
   const body = await request.json();
-  const nextPlan = body.plan ? normalizePlan(body.plan) : null;
-  const nextActive =
-    typeof body.active === "boolean" ? body.active : undefined;
+  const changes = {};
 
-  const adminClient = createAdminSupabaseClient();
-  const {
-    data: { user: existingUser },
-    error: getUserError,
-  } = await adminClient.auth.admin.getUserById(userId);
+  if ("role" in body) {
+    changes.role = normalizeRole(body.role);
+  }
 
-  if (getUserError || !existingUser) {
+  if ("plan" in body) {
+    changes.plan = normalizePlan(body.plan);
+  }
+
+  if ("active" in body) {
+    changes.active = Boolean(body.active);
+  }
+
+  if ("password" in body && body.password) {
+    changes.password = String(body.password);
+  }
+
+  if (!Object.keys(changes).length) {
     return NextResponse.json(
-      { error: "No se ha encontrado el usuario." },
-      { status: 404 }
+      { error: "No hay cambios válidos para aplicar." },
+      { status: 400 }
     );
   }
 
-  const currentAppMetadata = existingUser.app_metadata || {};
-  const attributes = {
-    app_metadata: {
-      ...currentAppMetadata,
-      ...(nextPlan ? { plan: nextPlan } : {}),
-    },
-  };
+  try {
+    const previousUser = await getManagedUserById(userId);
+    const user = await updateManagedUser(userId, changes);
 
-  if (typeof nextActive === "boolean") {
-    attributes.ban_duration = nextActive ? "none" : "876000h";
-    attributes.app_metadata.active = nextActive;
-  }
+    await writeAdminAuditLog({
+      actorUserId: context.user.id,
+      actorEmail: context.user.email,
+      targetUserId: user.id,
+      targetEmail: user.email,
+      action: "user.update",
+      changes: {
+        before: {
+          role: previousUser.role,
+          plan: previousUser.plan,
+          active: previousUser.active,
+        },
+        after: {
+          role: user.role,
+          plan: user.plan,
+          active: user.active,
+        },
+      },
+    });
 
-  const { error: updateError } = await adminClient.auth.admin.updateUserById(
-    userId,
-    attributes
-  );
-
-  if (updateError) {
+    return NextResponse.json({ user });
+  } catch (error) {
     return NextResponse.json(
-      { error: "No se pudo actualizar el usuario." },
+      { error: error.message || "No se pudo actualizar el usuario." },
       { status: 500 }
     );
   }
-
-  await updateProfileIfPresent(adminClient, userId, {
-    ...(nextPlan ? { plan: nextPlan } : {}),
-    ...(typeof nextActive === "boolean" ? { active: nextActive } : {}),
-  });
-
-  const {
-    data: { user: refreshedUser },
-  } = await adminClient.auth.admin.getUserById(userId);
-  const profilesMap = await readProfilesMap(adminClient, [userId]);
-
-  return NextResponse.json({
-    user: buildUserAccess(refreshedUser, profilesMap.get(userId)),
-  });
 }

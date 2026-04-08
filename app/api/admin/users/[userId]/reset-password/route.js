@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import {
-  createServerSupabaseClient,
+  getManagedUserById,
   requireAdminRequest,
+  sendManagedPasswordReset,
+  writeAdminAuditLog,
 } from "@/lib/supabase-admin";
 
-export async function POST(request) {
+export async function POST(request, { params }) {
   const context = await requireAdminRequest(request);
 
   if (context.error === "missing_token" || context.error === "invalid_user") {
@@ -18,27 +20,32 @@ export async function POST(request) {
     );
   }
 
-  const body = await request.json();
-  const email = String(body.email || "").trim();
+  try {
+    const user = await getManagedUserById(params.userId);
 
-  if (!email) {
+    if (!user.email) {
+      return NextResponse.json(
+        { error: "El usuario no tiene email disponible." },
+        { status: 400 }
+      );
+    }
+
+    await sendManagedPasswordReset(user.email, `${request.nextUrl.origin}/login`);
+
+    await writeAdminAuditLog({
+      actorUserId: context.user.id,
+      actorEmail: context.user.email,
+      targetUserId: user.id,
+      targetEmail: user.email,
+      action: "user.password_reset",
+      changes: null,
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
     return NextResponse.json(
-      { error: "Falta el email del usuario." },
-      { status: 400 }
-    );
-  }
-
-  const client = createServerSupabaseClient();
-  const { error } = await client.auth.resetPasswordForEmail(email, {
-    redirectTo: `${request.nextUrl.origin}/login`,
-  });
-
-  if (error) {
-    return NextResponse.json(
-      { error: "No se pudo enviar el reset de contraseña." },
+      { error: error.message || "No se pudo enviar el reset de contraseña." },
       { status: 500 }
     );
   }
-
-  return NextResponse.json({ ok: true });
 }

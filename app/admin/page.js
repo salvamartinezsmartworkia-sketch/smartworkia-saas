@@ -14,6 +14,7 @@ import {
   UserRound,
   BadgeCheck,
   AlertTriangle,
+  UserPlus,
 } from "lucide-react";
 
 function formatDate(value) {
@@ -27,6 +28,35 @@ function formatDate(value) {
   } catch {
     return "No disponible";
   }
+}
+
+function SourceBadge({ label, active }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+        active
+          ? "border-blue-200 bg-blue-50 text-blue-700"
+          : "border-slate-200 bg-slate-100 text-slate-500"
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function AdminKeyBadge({ keyKind }) {
+  const label =
+    keyKind === "secret"
+      ? "Supabase Secret Key"
+      : keyKind === "service_role"
+      ? "Supabase Service Role"
+      : "Sin clave privilegiada";
+
+  return (
+    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-200">
+      {label}
+    </span>
+  );
 }
 
 async function authenticatedFetch(url, accessToken, options = {}) {
@@ -54,6 +84,7 @@ export default function AdminPage() {
   const [session, setSession] = useState(null);
   const [admin, setAdmin] = useState(null);
   const [users, setUsers] = useState([]);
+  const [auditEntries, setAuditEntries] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
@@ -62,11 +93,21 @@ export default function AdminPage() {
   const [managementMessage, setManagementMessage] = useState("");
   const [managementEnabled, setManagementEnabled] = useState(true);
   const [busyUserId, setBusyUserId] = useState("");
+  const [keyKind, setKeyKind] = useState(null);
+  const [sourceOfTruth, setSourceOfTruth] = useState(null);
   const [passwordForm, setPasswordForm] = useState({
     password: "",
     confirmPassword: "",
   });
   const [passwordMessage, setPasswordMessage] = useState("");
+  const [createUserForm, setCreateUserForm] = useState({
+    email: "",
+    password: "",
+    role: "user",
+    plan: "starter",
+    active: true,
+    emailConfirm: true,
+  });
 
   const loadAdminData = useCallback(async (currentSession, { silent = false } = {}) => {
     const accessToken = currentSession?.access_token;
@@ -85,21 +126,19 @@ export default function AdminPage() {
     setError("");
 
     try {
-      const mePayload = await authenticatedFetch(
-        "/api/admin/me",
-        accessToken
-      );
+      const [mePayload, usersPayload, auditPayload] = await Promise.all([
+        authenticatedFetch("/api/admin/me", accessToken),
+        authenticatedFetch("/api/admin/users", accessToken),
+        authenticatedFetch("/api/admin/audit", accessToken),
+      ]);
 
       setAdmin(mePayload.admin);
-
-      const usersPayload = await authenticatedFetch(
-        "/api/admin/users",
-        accessToken
-      );
-
+      setKeyKind(mePayload.adminKeyKind || usersPayload.keyKind || null);
       setUsers(usersPayload.users || []);
+      setAuditEntries(auditPayload.entries || []);
       setManagementEnabled(usersPayload.managementEnabled !== false);
       setManagementMessage(usersPayload.message || "");
+      setSourceOfTruth(usersPayload.sourceOfTruth || null);
     } catch (fetchError) {
       if (String(fetchError.message).includes("administradores")) {
         router.replace("/dashboard");
@@ -176,7 +215,8 @@ export default function AdminPage() {
         currentSelectedUser?.id === userId ? payload.user : currentSelectedUser
       );
 
-      setInfoMessage("Usuario actualizado correctamente.");
+      setInfoMessage("Cambio administrativo aplicado correctamente.");
+      await loadAdminData(session, { silent: true });
     } catch (updateError) {
       setError(updateError.message || "No se pudo actualizar el usuario.");
     } finally {
@@ -206,6 +246,41 @@ export default function AdminPage() {
       setError(
         resetError.message || "No se pudo enviar el reset de contraseña."
       );
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
+  async function createUser() {
+    if (!session?.access_token) return;
+
+    setBusyUserId("create");
+    setInfoMessage("");
+    setError("");
+
+    try {
+      const payload = await authenticatedFetch(
+        "/api/admin/users",
+        session.access_token,
+        {
+          method: "POST",
+          body: JSON.stringify(createUserForm),
+        }
+      );
+
+      setCreateUserForm({
+        email: "",
+        password: "",
+        role: "user",
+        plan: "starter",
+        active: true,
+        emailConfirm: true,
+      });
+      setSelectedUser(payload.user);
+      setInfoMessage(`Usuario creado: ${payload.user.email}`);
+      await loadAdminData(session, { silent: true });
+    } catch (createError) {
+      setError(createError.message || "No se pudo crear el usuario.");
     } finally {
       setBusyUserId("");
     }
@@ -259,14 +334,17 @@ export default function AdminPage() {
         <section className="bg-slate-900 text-white border-b border-slate-800">
           <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-200">
-                <ShieldCheck className="w-4 h-4" />
-                SmartWorkIA Admin
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-200">
+                  <ShieldCheck className="w-4 h-4" />
+                  SmartWorkIA Admin
+                </div>
+                <AdminKeyBadge keyKind={keyKind} />
               </div>
               <h1 className="mt-5 text-4xl font-black tracking-tight">
                 Administración interna
               </h1>
-              <p className="mt-3 max-w-2xl text-slate-300 leading-relaxed">
+              <p className="mt-3 max-w-3xl text-slate-300 leading-relaxed">
                 Controla usuarios, planes, accesos y permisos desde una zona separada del dashboard operativo.
               </p>
             </div>
@@ -340,6 +418,28 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+
+          {sourceOfTruth && (
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-black text-slate-900">
+                Fuente de verdad y sincronización
+              </h2>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Role</div>
+                  <div className="mt-2 font-bold text-slate-900">{sourceOfTruth.role}</div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Plan</div>
+                  <div className="mt-2 font-bold text-slate-900">{sourceOfTruth.plan}</div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Active</div>
+                  <div className="mt-2 font-bold text-slate-900">{sourceOfTruth.active}</div>
+                </div>
+              </div>
+            </section>
+          )}
 
           <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_2fr] gap-8">
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
@@ -439,23 +539,24 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[920px]">
+                  <table className="w-full min-w-[1120px]">
                     <thead>
                       <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                        <th className="pb-4 pr-4">Email</th>
+                        <th className="pb-4 pr-4">Usuario</th>
                         <th className="pb-4 pr-4">Plan</th>
                         <th className="pb-4 pr-4">Estado</th>
                         <th className="pb-4 pr-4">Rol</th>
+                        <th className="pb-4 pr-4">Fuentes</th>
                         <th className="pb-4 pr-4">Creación</th>
                         <th className="pb-4 pr-4">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {users.map((user) => (
-                        <tr key={user.id} className="border-t border-slate-100">
+                        <tr key={user.id} className="border-t border-slate-100 align-top">
                           <td className="py-4 pr-4">
                             <div className="font-bold text-slate-900">{user.email || "Sin email"}</div>
-                            <div className="text-xs text-slate-500 mt-1">{user.id}</div>
+                            <div className="text-xs text-slate-500 mt-1 break-all">{user.id}</div>
                           </td>
                           <td className="py-4 pr-4">
                             <select
@@ -481,9 +582,33 @@ export default function AdminPage() {
                             >
                               {user.active ? "Activo" : "Inactivo"}
                             </span>
+                            <div className="mt-2 text-xs text-slate-500">
+                              {user.active ? "Sin bloqueo activo" : "Bloqueado / baneado"}
+                            </div>
                           </td>
                           <td className="py-4 pr-4">
-                            <span className="font-semibold text-slate-700">{user.role}</span>
+                            <select
+                              value={user.role}
+                              disabled={!managementEnabled || busyUserId === user.id}
+                              onChange={(event) =>
+                                updateUser(user.id, { role: event.target.value })
+                              }
+                              className="h-11 rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-900 disabled:opacity-60"
+                            >
+                              <option value="user">user</option>
+                              <option value="admin">admin</option>
+                            </select>
+                          </td>
+                          <td className="py-4 pr-4">
+                            <div className="flex flex-wrap gap-2">
+                              <SourceBadge label="Auth" active={user.availability?.auth} />
+                              <SourceBadge label="Profiles" active={user.availability?.profile} />
+                            </div>
+                            <div className="mt-2 text-xs text-slate-500 space-y-1">
+                              <div>role: {user.sources?.role}</div>
+                              <div>plan: {user.sources?.plan}</div>
+                              <div>active: {user.sources?.active}</div>
+                            </div>
                           </td>
                           <td className="py-4 pr-4 text-sm text-slate-600">
                             {formatDate(user.createdAt)}
@@ -501,7 +626,7 @@ export default function AdminPage() {
                                 onClick={() => setSelectedUser(user)}
                                 className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100 transition-colors"
                               >
-                                Ver perfil
+                                Ver detalle
                               </button>
                               <button
                                 onClick={() => sendPasswordReset(user)}
@@ -595,6 +720,135 @@ export default function AdminPage() {
               </div>
             )}
           </section>
+
+          <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-8">
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                  <UserPlus className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900">Crear usuario</h2>
+                  <p className="text-slate-500">Alta manual en auth.users con rol, plan y estado inicial.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <input
+                  type="email"
+                  value={createUserForm.email}
+                  onChange={(event) =>
+                    setCreateUserForm((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  placeholder="email@empresa.com"
+                  className="w-full h-12 rounded-xl border border-slate-200 px-4 outline-none focus:border-blue-500"
+                />
+                <input
+                  type="password"
+                  value={createUserForm.password}
+                  onChange={(event) =>
+                    setCreateUserForm((current) => ({
+                      ...current,
+                      password: event.target.value,
+                    }))
+                  }
+                  placeholder="Contraseña temporal"
+                  className="w-full h-12 rounded-xl border border-slate-200 px-4 outline-none focus:border-blue-500"
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <select
+                    value={createUserForm.role}
+                    onChange={(event) =>
+                      setCreateUserForm((current) => ({
+                        ...current,
+                        role: event.target.value,
+                      }))
+                    }
+                    className="h-12 rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-900"
+                  >
+                    <option value="user">user</option>
+                    <option value="admin">admin</option>
+                  </select>
+                  <select
+                    value={createUserForm.plan}
+                    onChange={(event) =>
+                      setCreateUserForm((current) => ({
+                        ...current,
+                        plan: event.target.value,
+                      }))
+                    }
+                    className="h-12 rounded-xl border border-slate-200 bg-white px-4 font-semibold text-slate-900"
+                  >
+                    <option value="starter">starter</option>
+                    <option value="pro">pro</option>
+                    <option value="enterprise">enterprise</option>
+                  </select>
+                </div>
+                <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={createUserForm.active}
+                    onChange={(event) =>
+                      setCreateUserForm((current) => ({
+                        ...current,
+                        active: event.target.checked,
+                      }))
+                    }
+                  />
+                  Usuario activo desde el alta
+                </label>
+                <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={createUserForm.emailConfirm}
+                    onChange={(event) =>
+                      setCreateUserForm((current) => ({
+                        ...current,
+                        emailConfirm: event.target.checked,
+                      }))
+                    }
+                  />
+                  Confirmar email al crear
+                </label>
+                <button
+                  onClick={createUser}
+                  disabled={!managementEnabled || busyUserId === "create"}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-white font-bold hover:bg-slate-800 transition-colors disabled:opacity-60"
+                >
+                  Crear usuario
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-black text-slate-900">Auditoría reciente</h2>
+              <p className="mt-2 text-slate-500">Quién hizo qué, sobre qué usuario y cuándo.</p>
+
+              <div className="mt-5 space-y-3">
+                {auditEntries.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-slate-500">
+                    Sin registros todavía o falta la tabla admin_audit_log.
+                  </div>
+                ) : (
+                  auditEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="font-bold text-slate-900">{entry.action}</div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        {entry.actor_email || "admin"} sobre {entry.target_email || entry.target_user_id}
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">{formatDate(entry.created_at)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
         </div>
       </main>
     </>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  getPrivilegedAdminKeyKind,
+  readRecentAdminAuditLog,
   requireAdminRequest,
 } from "@/lib/supabase-admin";
 
@@ -18,8 +18,9 @@ export async function GET(request) {
     );
   }
 
+  const entries = await readRecentAdminAuditLog();
+
   return NextResponse.json({
-    admin: context.access,
-    adminKeyKind: getPrivilegedAdminKeyKind(),
+    entries,
   });
 }
