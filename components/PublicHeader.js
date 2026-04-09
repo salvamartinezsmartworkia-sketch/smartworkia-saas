@@ -3,11 +3,11 @@
 import Link from "next/link";
 
 const navItems = [
-  { label: "PÃ¡gina principal", href: "/" },
+  { label: "Pagina principal", href: "/" },
   { label: "Recursos" },
-  { label: "Sobre mÃ­" },
+  { label: "Sobre mi" },
   {
-    label: "DiagnÃ³stico",
+    label: "Diagnostico",
     href: "https://www.smartworkia.com/diagnostico",
     external: true,
   },

@@ -79,6 +79,24 @@ async function authenticatedFetch(url, accessToken, options = {}) {
   return payload;
 }
 
+function describeAdminChange(patch) {
+  if ("plan" in patch) {
+    return `Plan actualizado a ${patch.plan}.`;
+  }
+
+  if ("active" in patch) {
+    return patch.active
+      ? "Usuario activado correctamente."
+      : "Usuario desactivado correctamente.";
+  }
+
+  if ("role" in patch) {
+    return `Rol actualizado a ${patch.role}.`;
+  }
+
+  return "Cambio guardado correctamente.";
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [session, setSession] = useState(null);
@@ -95,6 +113,7 @@ export default function AdminPage() {
   const [busyUserId, setBusyUserId] = useState("");
   const [keyKind, setKeyKind] = useState(null);
   const [sourceOfTruth, setSourceOfTruth] = useState(null);
+  const [savedUserFeedback, setSavedUserFeedback] = useState(null);
   const [passwordForm, setPasswordForm] = useState({
     password: "",
     confirmPassword: "",
@@ -179,6 +198,18 @@ export default function AdminPage() {
     };
   }, [loadAdminData, router]);
 
+  useEffect(() => {
+    if (!savedUserFeedback) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSavedUserFeedback(null);
+    }, 3500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [savedUserFeedback]);
+
   async function refreshUsers() {
     setInfoMessage("");
     await loadAdminData(session, { silent: true });
@@ -196,6 +227,7 @@ export default function AdminPage() {
     setBusyUserId(userId);
     setInfoMessage("");
     setError("");
+    setSavedUserFeedback(null);
 
     try {
       const payload = await authenticatedFetch(
@@ -218,9 +250,15 @@ export default function AdminPage() {
         currentSelectedUser?.id === userId ? payload.user : currentSelectedUser
       );
 
-      setInfoMessage("Cambio administrativo aplicado correctamente.");
+      const successMessage = describeAdminChange(patch);
+      setInfoMessage(successMessage);
+      setSavedUserFeedback({
+        userId,
+        message: successMessage,
+      });
       await loadAdminData(session, { silent: true });
     } catch (updateError) {
+      setSavedUserFeedback(null);
       setError(updateError.message || "No se pudo actualizar el usuario.");
     } finally {
       setBusyUserId("");
@@ -233,6 +271,7 @@ export default function AdminPage() {
     setBusyUserId(user.id);
     setInfoMessage("");
     setError("");
+    setSavedUserFeedback(null);
 
     try {
       await authenticatedFetch(
@@ -642,6 +681,11 @@ export default function AdminPage() {
                                 Reset password
                               </button>
                             </div>
+                            {savedUserFeedback?.userId === user.id && (
+                              <div className="mt-3 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                                {savedUserFeedback.message}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}

@@ -5,9 +5,9 @@ import Link from "next/link";
 const navigationLinks = [
   { label: "Inicio", href: "/" },
   { label: "Recursos" },
-  { label: "Sobre mÃ­" },
+  { label: "Sobre mi" },
   {
-    label: "DiagnÃ³stico",
+    label: "Diagnostico",
     href: "https://www.smartworkia.com/diagnostico",
     external: true,
   },
@@ -53,13 +53,13 @@ export default function PublicFooter() {
 
               <p className="swia-footer-text">
                 Inteligencia Artificial Aplicada para convertir ideas, procesos y
-                datos en decisiones mÃ¡s inteligentes.
+                datos en decisiones mas inteligentes.
               </p>
             </div>
 
             <div className="swia-footer-links">
               <div className="swia-footer-column">
-                <span className="swia-footer-title">NavegaciÃ³n</span>
+                <span className="swia-footer-title">Navegacion</span>
                 {navigationLinks.map((item) => (
                   <FooterLink key={item.label} item={item} />
                 ))}
@@ -75,7 +75,7 @@ export default function PublicFooter() {
               <div className="swia-footer-column">
                 <span className="swia-footer-title">SmartWorkIA</span>
                 <span className="swia-footer-note">
-                  Plataforma privada para clientes, recursos, diagnÃ³sticos y
+                  Plataforma privada para clientes, recursos, diagnosticos y
                   herramientas inteligentes.
                 </span>
               </div>
@@ -83,8 +83,7 @@ export default function PublicFooter() {
           </div>
 
           <div className="swia-footer-bottom">
-            <span>Â© 2026 SmartWorkIA. Todos los derechos reservados.</span>
-            <span>Built with strategy, IA & criterio real.</span>
+            <span>© 2026 SmartWorkIA. Todos los derechos reservados.</span>
           </div>
         </div>
       </footer>
@@ -183,7 +182,7 @@ export default function PublicFooter() {
         .swia-footer-bottom {
           padding-top: 20px;
           display: flex;
-          justify-content: space-between;
+          justify-content: flex-start;
           gap: 20px;
           flex-wrap: wrap;
           font-size: 14px;
