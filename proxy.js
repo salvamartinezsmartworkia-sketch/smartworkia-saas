@@ -39,10 +39,6 @@ export function proxy(request) {
       loginUrl.searchParams.set("redirect", `${pathname}${search}`);
       return NextResponse.redirect(loginUrl);
     }
-
-    if (!hasAdminAccess) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
   }
 
   if (!isAdminRoute && !hasSupabaseAccess && !hasDemoAccess) {
