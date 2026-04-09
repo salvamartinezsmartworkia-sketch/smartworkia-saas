@@ -11,7 +11,11 @@ const navItems = [
     href: "https://www.smartworkia.com/diagnostico",
     external: true,
   },
-  { label: "Blog" },
+  {
+    label: "Blog",
+    href: "https://www.smartworkia.com/blog",
+    external: true,
+  },
 ];
 
 export default function PublicHeader() {
