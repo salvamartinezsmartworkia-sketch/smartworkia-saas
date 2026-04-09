@@ -13,15 +13,22 @@ import { getToolBySlug, getToolRequiredPlan } from "@/lib/tools-registry";
 
 export function proxy(request) {
   const { pathname, search } = request.nextUrl;
+  const isTeachingAreaRoute = pathname.startsWith("/area-docente");
 
   const isPrivateRoute =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/tools") ||
     pathname.startsWith("/crm") ||
-    pathname.startsWith("/admin");
-  const isAdminRoute = pathname.startsWith("/admin");
+    pathname.startsWith("/admin") ||
+    isTeachingAreaRoute;
+  const isAdminRoute =
+    pathname.startsWith("/admin") || pathname.startsWith("/area-docente");
 
   if (!isPrivateRoute) {
+    return NextResponse.next();
+  }
+
+  if (isTeachingAreaRoute) {
     return NextResponse.next();
   }
 
@@ -71,5 +78,11 @@ export function proxy(request) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/tools/:path*", "/crm/:path*", "/admin/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/tools/:path*",
+    "/crm/:path*",
+    "/admin/:path*",
+    "/area-docente/:path*",
+  ],
 };

@@ -18,6 +18,29 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function getReadableAuthError(error) {
+    const rawMessage = String(error?.message || "").trim();
+    const normalized = rawMessage.toLowerCase();
+
+    if (
+      normalized.includes("invalid login credentials") ||
+      normalized.includes("email not confirmed") ||
+      normalized.includes("invalid email or password")
+    ) {
+      return "Email o contrasena incorrectos.";
+    }
+
+    if (normalized.includes("email logins are disabled")) {
+      return "El acceso por email esta desactivado en Supabase.";
+    }
+
+    if (normalized.includes("network") || normalized.includes("fetch")) {
+      return "No se pudo conectar con Supabase. Revisa red y configuracion local.";
+    }
+
+    return rawMessage || "No se pudo iniciar sesion.";
+  }
+
   async function handleSignIn(e) {
     e.preventDefault();
     setLoading(true);
@@ -30,7 +53,8 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setMessage("Email o contrasena incorrectos.");
+      console.error("Supabase signInWithPassword error:", error);
+      setMessage(getReadableAuthError(error));
     } else {
       const access = await resolveClientUserAccess(data.user);
       enableSupabaseAccessCookie();
