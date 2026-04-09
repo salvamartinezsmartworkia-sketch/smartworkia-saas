@@ -203,7 +203,10 @@ export default function AdminPage() {
         session.access_token,
         {
           method: "PATCH",
-          body: JSON.stringify(patch),
+          body: JSON.stringify({
+            userId,
+            ...patch,
+          }),
         }
       );
 
@@ -237,7 +240,10 @@ export default function AdminPage() {
         session.access_token,
         {
           method: "POST",
-          body: JSON.stringify({ email: user.email }),
+          body: JSON.stringify({
+            userId: user.id,
+            email: user.email,
+          }),
         }
       );
 

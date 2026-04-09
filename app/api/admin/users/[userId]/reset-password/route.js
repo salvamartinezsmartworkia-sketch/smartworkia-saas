@@ -6,7 +6,22 @@ import {
   writeAdminAuditLog,
 } from "@/lib/supabase-admin";
 
-export async function POST(request, { params }) {
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "").trim()
+  );
+}
+
+async function resolveRouteUserId(contextRoute) {
+  const params = await contextRoute?.params;
+  const rawUserId = Array.isArray(params?.userId)
+    ? params.userId[0]
+    : params?.userId;
+
+  return String(rawUserId || "").trim();
+}
+
+export async function POST(request, contextRoute) {
   const context = await requireAdminRequest(request);
 
   if (context.error === "missing_token" || context.error === "invalid_user") {
@@ -20,8 +35,27 @@ export async function POST(request, { params }) {
     );
   }
 
+  let body = null;
+
   try {
-    const user = await getManagedUserById(params.userId);
+    body = await request.json();
+  } catch {
+    body = null;
+  }
+
+  const routeUserId = await resolveRouteUserId(contextRoute);
+  const bodyUserId = String(body?.userId || "").trim();
+  const userId = isUuid(routeUserId) ? routeUserId : bodyUserId;
+
+  if (!isUuid(userId)) {
+    return NextResponse.json(
+      { error: "El identificador del usuario no es válido." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const user = await getManagedUserById(userId);
 
     if (!user.email) {
       return NextResponse.json(

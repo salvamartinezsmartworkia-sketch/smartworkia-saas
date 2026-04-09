@@ -30,7 +30,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setMessage("Email o contraseÃ±a incorrectos.");
+      setMessage("Email o contrasena incorrectos.");
     } else {
       const access = await resolveClientUserAccess(data.user);
       enableSupabaseAccessCookie();
@@ -86,7 +86,7 @@ export default function LoginPage() {
             color: "#1E83E4",
           }}
         >
-          SMARTWORKIA Â· ACCESO
+          SMARTWORKIA | ACCESO
         </span>
 
         <h1
@@ -99,7 +99,7 @@ export default function LoginPage() {
             margin: "0 0 12px",
           }}
         >
-          Iniciar sesiÃ³n
+          Iniciar sesion
         </h1>
 
         <p
@@ -155,13 +155,13 @@ export default function LoginPage() {
                 color: "#162C4B",
               }}
             >
-              ContraseÃ±a
+              Contrasena
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Tu contraseÃ±a"
+              placeholder="Tu contrasena"
               autoComplete="current-password"
               required
               style={{
