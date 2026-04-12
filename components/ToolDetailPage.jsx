@@ -1,6 +1,7 @@
 "use client";
 
-import PrivateHeader from "@/components/PrivateHeader";
+import PublicHeader from "@/components/PublicHeader";
+import PublicFooter from "@/components/PublicFooter";
 import {
   ChevronRight,
   ShieldCheck,
@@ -38,7 +39,7 @@ export default function ToolDetailPage({
 }) {
   return (
     <>
-      <PrivateHeader />
+      <PublicHeader />
 
       <div className="min-h-screen bg-slate-50">
         <section className="border-b border-slate-200 bg-white">
@@ -294,6 +295,8 @@ export default function ToolDetailPage({
           </section>
         </main>
       </div>
+
+      <PublicFooter />
     </>
   );
 }

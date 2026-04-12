@@ -13,6 +13,9 @@ import { getToolBySlug, getToolRequiredPlan } from "@/lib/tools-registry";
 
 export function proxy(request) {
   const { pathname, search } = request.nextUrl;
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const isToolInfoRoute =
+    pathSegments[0] === "tools" && pathSegments[2] === "info";
   const isTeachingAreaRoute = pathname.startsWith("/area-docente");
   const isVirtualClassroomRoute = pathname.startsWith("/aula-virtual-demo");
   const isCampusRoute = pathname.startsWith("/campus");
@@ -30,6 +33,10 @@ export function proxy(request) {
     pathname.startsWith("/area-docente") ||
     pathname.startsWith("/aula-virtual-demo") ||
     pathname.startsWith("/campus");
+
+  if (isToolInfoRoute) {
+    return NextResponse.next();
+  }
 
   if (!isPrivateRoute) {
     return NextResponse.next();
@@ -62,8 +69,7 @@ export function proxy(request) {
   }
 
   if (!isAdminRoute && pathname.startsWith("/tools/")) {
-    const segments = pathname.split("/").filter(Boolean);
-    const toolSlug = segments[1];
+    const toolSlug = pathSegments[1];
     const tool = getToolBySlug(toolSlug);
 
     if (tool) {

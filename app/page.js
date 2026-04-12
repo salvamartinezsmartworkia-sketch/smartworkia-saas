@@ -31,13 +31,13 @@ const ecosystemCards = [
 const pathwayPlans = [
   {
     eyebrow: "Starter",
-    title: "Entrada clara",
+    title: "Empieza a ver lo que hoy no estas viendo",
     badge: "Primer paso",
-    meta: "Lectura inicial",
+    meta: "Primera lectura util",
     description:
-      "Un piloto para detectar tensiones, quick wins y valor visible sin pedir una transformacion completa.",
-    valueTitle: "Ver antes",
-    valueText: "claridad rapida",
+      "Una entrada rapida para detectar tensiones, quick wins y puntos de valor antes de meterte en una transformacion completa.",
+    valueTitle: "Detectar y enfocar",
+    valueText: "primera capa de claridad",
     points: [
       "Claridad rapida",
       "Bajo riesgo de entrada",
@@ -49,7 +49,7 @@ const pathwayPlans = [
       { label: "Enfoque", value: "Detectar" },
     ],
     summary:
-      "Todavia necesitas ordenar el mapa, detectar senales y hacer visibles los primeros puntos de valor.",
+      "Todavia necesitas ordenar el mapa, hacer visibles senales dispersas y entender donde merece la pena actuar primero.",
     icon: Compass,
     tone: "amber",
     href: "/starter",
@@ -57,12 +57,12 @@ const pathwayPlans = [
   },
   {
     eyebrow: "Pro",
-    title: "Decidir mejor",
+    title: "Pasa de mirar datos a decidir mejor",
     badge: "Recomendado",
-    meta: "Capa de criterio",
+    meta: "Capa de decision",
     description:
-      "La capa de decision que entra cuando ya no basta con visibilidad y necesitas criterio real para priorizar.",
-    valueTitle: "Comparar y priorizar",
+      "La capa que entra cuando la visibilidad ya no basta y el negocio necesita criterio real para comparar, priorizar y actuar.",
+    valueTitle: "Priorizar y decidir",
     valueText: "decision ejecutiva",
     points: [
       "Simulacion y escenarios",
@@ -75,7 +75,7 @@ const pathwayPlans = [
       { label: "Enfoque", value: "Priorizar" },
     ],
     summary:
-      "La visibilidad ya no basta. Hace falta una capa que ayude a leer, comparar y decidir con mas criterio.",
+      "Ya no basta con ver. Hace falta una capa que ayude a leer mejor la presion del negocio y decidir con mas impacto.",
     icon: Sparkles,
     href: "/pro",
     cta: "Ver Pro",
@@ -84,13 +84,13 @@ const pathwayPlans = [
   },
   {
     eyebrow: "Enterprise",
-    title: "Capacidad propia",
+    title: "Convierte esta logica en una capacidad propia",
     badge: "Escala",
     meta: "Sistema adaptado",
     description:
-      "Cuando ya no buscas solo una herramienta, sino una logica adaptada a tus datos, procesos y forma de decidir.",
+      "Cuando ya no buscas solo acceso a herramientas, sino una logica integrada a tus datos, procesos y forma real de operar.",
     valueTitle: "Integrar y gobernar",
-    valueText: "capacidad propia",
+    valueText: "capacidad instalada",
     points: [
       "Integracion y gobernanza",
       "Sistema adaptado",
@@ -102,7 +102,7 @@ const pathwayPlans = [
       { label: "Enfoque", value: "Integrar" },
     ],
     summary:
-      "La complejidad ya es transversal y pide una logica conectada al negocio, no solo una herramienta aislada.",
+      "La complejidad ya es transversal y necesita una solucion conectada al negocio, gobernable y preparada para escalar.",
     icon: Network,
     tone: "slate",
     href: "/enterprise",
