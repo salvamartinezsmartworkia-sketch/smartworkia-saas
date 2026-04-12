@@ -7,6 +7,8 @@ import {
   PublicPageFrame,
 } from "@/components/PublicMarketing";
 
+const PRO_BOOKING_URL = "https://www.smartworkia.com/reserva-pro";
+
 const proPillars = [
   {
     title: "Que resuelve aqui",
@@ -61,6 +63,11 @@ export default function ProPage() {
             { title: "2", text: "Prioriza" },
             { title: "3", text: "Decide" },
           ]}
+          panelCta={{
+            href: PRO_BOOKING_URL,
+            label: "Agendar reunion Pro",
+            external: true,
+          }}
           infoCards={[
             {
               title: "Mas criterio",
@@ -90,10 +97,14 @@ export default function ProPage() {
 
         <CtaBand
           eyebrow="Siguiente paso"
-          title="Da el salto a una capa de decision mucho mas seria"
-          description="Si ya no basta con ver, Pro es la via natural para empezar a decidir mejor."
-          primaryCta={{ href: "/login", label: "Acceder" }}
-          secondaryCta={{ href: "/acceso", label: "Comparar niveles" }}
+          title="Si Pro encaja con la presion actual del negocio, agendamos una reunion y vemos el siguiente paso"
+          description="La mejor forma de validar Pro es revisar contigo el tipo de tensiones que hoy te cuestan margen, caja o capacidad de reaccion."
+          primaryCta={{
+            href: PRO_BOOKING_URL,
+            label: "Agendar reunion Pro",
+            external: true,
+          }}
+          secondaryCta={{ href: "/login", label: "Acceder a la zona privada" }}
         />
       </PublicPageFrame>
 

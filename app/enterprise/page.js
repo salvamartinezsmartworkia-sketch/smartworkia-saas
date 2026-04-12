@@ -7,6 +7,8 @@ import {
   PublicPageFrame,
 } from "@/components/PublicMarketing";
 
+const ENTERPRISE_BOOKING_URL = "https://www.smartworkia.com/reserva-enterprise";
+
 const enterprisePillars = [
   {
     title: "Que resuelve aqui",
@@ -61,6 +63,11 @@ export default function EnterprisePage() {
             { title: "2", text: "Integrar" },
             { title: "3", text: "Escalar" },
           ]}
+          panelCta={{
+            href: ENTERPRISE_BOOKING_URL,
+            label: "Agendar reunion Enterprise",
+            external: true,
+          }}
           infoCards={[
             {
               title: "Capacidad propia",
@@ -90,10 +97,14 @@ export default function EnterprisePage() {
 
         <CtaBand
           eyebrow="Siguiente paso"
-          title="Si ya piensas en sistema, Enterprise es la conversacion correcta"
-          description="Cuando la complejidad ya afecta al conjunto del negocio, tiene sentido dar el salto a una capacidad propia."
-          primaryCta={{ href: "/login", label: "Acceder" }}
-          secondaryCta={{ href: "/acceso", label: "Comparar niveles" }}
+          title="Si ya piensas en sistema, agendamos una reunion y aterrizamos el encaje Enterprise"
+          description="La mejor forma de validar Enterprise es revisar contigo la complejidad real, el alcance y el tipo de capacidad que tiene sentido construir."
+          primaryCta={{
+            href: ENTERPRISE_BOOKING_URL,
+            label: "Agendar reunion Enterprise",
+            external: true,
+          }}
+          secondaryCta={{ href: "/login", label: "Acceder a la zona privada" }}
         />
       </PublicPageFrame>
 

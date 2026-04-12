@@ -38,6 +38,7 @@ export function HeroSplit({
   panelTitle,
   panelDescription,
   panelItems = [],
+  panelCta,
 }) {
   return (
     <section className="bg-[radial-gradient(circle_at_top_right,rgba(30,131,228,0.10),transparent_28%),linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] px-5 py-14 sm:px-6 lg:px-8 lg:py-18 xl:px-10">
@@ -72,12 +73,23 @@ export function HeroSplit({
           {(primaryCta || secondaryCta) ? (
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               {primaryCta ? (
-                <Link
-                  href={primaryCta.href}
-                  className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-slate-900 px-6 text-sm font-bold text-white shadow-[0_10px_30px_rgba(22,44,75,0.16)] transition-colors hover:bg-blue-700"
-                >
-                  {primaryCta.label}
-                </Link>
+                primaryCta.external ? (
+                  <a
+                    href={primaryCta.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-slate-900 px-6 text-sm font-bold text-white shadow-[0_10px_30px_rgba(22,44,75,0.16)] transition-colors hover:bg-blue-700"
+                  >
+                    {primaryCta.label}
+                  </a>
+                ) : (
+                  <Link
+                    href={primaryCta.href}
+                    className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-slate-900 px-6 text-sm font-bold text-white shadow-[0_10px_30px_rgba(22,44,75,0.16)] transition-colors hover:bg-blue-700"
+                  >
+                    {primaryCta.label}
+                  </Link>
+                )
               ) : null}
               {secondaryCta ? (
                 <a
@@ -133,6 +145,19 @@ export function HeroSplit({
                   </span>
                 </div>
               ))}
+            </div>
+          ) : null}
+
+          {panelCta ? (
+            <div className="mt-8">
+              <a
+                href={panelCta.href}
+                target={panelCta.external ? "_blank" : undefined}
+                rel={panelCta.external ? "noopener noreferrer" : undefined}
+                className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-white px-6 text-sm font-bold text-slate-900 transition-colors hover:bg-blue-50"
+              >
+                {panelCta.label}
+              </a>
             </div>
           ) : null}
         </div>
@@ -368,6 +393,58 @@ export function PlanCardsSection({ eyebrow, title, description, plans }) {
 }
 
 export function CtaBand({ eyebrow, title, description, primaryCta, secondaryCta }) {
+  const renderPrimaryCta = () => {
+    if (!primaryCta) return null;
+
+    if (primaryCta.external) {
+      return (
+        <a
+          href={primaryCta.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-white px-6 text-sm font-bold text-slate-900 transition-colors hover:bg-blue-50"
+        >
+          {primaryCta.label}
+        </a>
+      );
+    }
+
+    return (
+      <Link
+        href={primaryCta.href}
+        className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-white px-6 text-sm font-bold text-slate-900 transition-colors hover:bg-blue-50"
+      >
+        {primaryCta.label}
+      </Link>
+    );
+  };
+
+  const renderSecondaryCta = () => {
+    if (!secondaryCta) return null;
+
+    if (secondaryCta.external) {
+      return (
+        <a
+          href={secondaryCta.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-[52px] items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-6 text-sm font-bold text-white transition-colors hover:bg-white/16"
+        >
+          {secondaryCta.label}
+        </a>
+      );
+    }
+
+    return (
+      <Link
+        href={secondaryCta.href}
+        className="inline-flex min-h-[52px] items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-6 text-sm font-bold text-white transition-colors hover:bg-white/16"
+      >
+        {secondaryCta.label}
+      </Link>
+    );
+  };
+
   return (
     <section className="px-5 pb-16 sm:px-6 lg:px-8 xl:px-10">
       <div className="mx-auto max-w-7xl rounded-[2rem] bg-[linear-gradient(180deg,#162C4B_0%,#0f223b_100%)] px-6 py-8 text-white shadow-[0_24px_60px_rgba(22,44,75,0.18)] sm:px-8 sm:py-10">
@@ -384,22 +461,8 @@ export function CtaBand({ eyebrow, title, description, primaryCta, secondaryCta 
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          {primaryCta ? (
-            <Link
-              href={primaryCta.href}
-              className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-white px-6 text-sm font-bold text-slate-900 transition-colors hover:bg-blue-50"
-            >
-              {primaryCta.label}
-            </Link>
-          ) : null}
-          {secondaryCta ? (
-            <Link
-              href={secondaryCta.href}
-              className="inline-flex min-h-[52px] items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-6 text-sm font-bold text-white transition-colors hover:bg-white/16"
-            >
-              {secondaryCta.label}
-            </Link>
-          ) : null}
+          {renderPrimaryCta()}
+          {renderSecondaryCta()}
         </div>
       </div>
     </section>

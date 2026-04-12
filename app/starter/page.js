@@ -7,6 +7,8 @@ import {
   PublicPageFrame,
 } from "@/components/PublicMarketing";
 
+const STARTER_BOOKING_URL = "https://www.smartworkia.com/reserva-starter";
+
 const starterPillars = [
   {
     title: "Para que sirve",
@@ -61,6 +63,11 @@ export default function StarterPage() {
             { title: "2", text: "Leemos" },
             { title: "3", text: "Priorizamos" },
           ]}
+          panelCta={{
+            href: STARTER_BOOKING_URL,
+            label: "Agendar reunion Starter",
+            external: true,
+          }}
           infoCards={[
             {
               title: "Entrada sin friccion",
@@ -90,10 +97,14 @@ export default function StarterPage() {
 
         <CtaBand
           eyebrow="Siguiente paso"
-          title="Empieza por claridad visible y entra cuando quieras en la zona privada"
-          description="Si buscas una via de entrada razonable, Starter es el mejor lugar para empezar sin friccion."
-          primaryCta={{ href: "/login", label: "Acceder" }}
-          secondaryCta={{ href: "/acceso", label: "Comparar niveles" }}
+          title="Si Starter encaja con tu momento, cerramos una reunion y vemos juntos por donde empezar"
+          description="La mejor forma de validar Starter es aterrizarlo a tu realidad, revisar el encaje y definir una primera entrada util."
+          primaryCta={{
+            href: STARTER_BOOKING_URL,
+            label: "Agendar reunion Starter",
+            external: true,
+          }}
+          secondaryCta={{ href: "/login", label: "Acceder a la zona privada" }}
         />
       </PublicPageFrame>
 
