@@ -1,5 +1,6 @@
 import PublicHeader from "@/components/PublicHeader";
 import PublicFooter from "@/components/PublicFooter";
+import { Compass, Network, Sparkles } from "lucide-react";
 import {
   CardGridSection,
   CtaBand,
@@ -32,13 +33,25 @@ const pathwayPlans = [
     eyebrow: "Starter",
     title: "Entrada clara",
     badge: "Primer paso",
+    meta: "Lectura inicial",
     description:
       "Un piloto para detectar tensiones, quick wins y valor visible sin pedir una transformacion completa.",
+    valueTitle: "Ver antes",
+    valueText: "claridad rapida",
     points: [
       "Claridad rapida",
       "Bajo riesgo de entrada",
       "Assessment y primeras decisiones",
     ],
+    highlights: [
+      { label: "Ritmo", value: "Rapido" },
+      { label: "Esfuerzo", value: "Ligero" },
+      { label: "Enfoque", value: "Detectar" },
+    ],
+    summary:
+      "Todavia necesitas ordenar el mapa, detectar senales y hacer visibles los primeros puntos de valor.",
+    icon: Compass,
+    tone: "amber",
     href: "/starter",
     cta: "Ver Starter",
   },
@@ -46,28 +59,52 @@ const pathwayPlans = [
     eyebrow: "Pro",
     title: "Decidir mejor",
     badge: "Recomendado",
+    meta: "Capa de criterio",
     description:
       "La capa de decision que entra cuando ya no basta con visibilidad y necesitas criterio real para priorizar.",
+    valueTitle: "Comparar y priorizar",
+    valueText: "decision ejecutiva",
     points: [
       "Simulacion y escenarios",
       "Priorizacion ejecutiva",
       "Menos coste de decidir tarde",
     ],
+    highlights: [
+      { label: "Ritmo", value: "Activo" },
+      { label: "Esfuerzo", value: "Medio" },
+      { label: "Enfoque", value: "Priorizar" },
+    ],
+    summary:
+      "La visibilidad ya no basta. Hace falta una capa que ayude a leer, comparar y decidir con mas criterio.",
+    icon: Sparkles,
     href: "/pro",
     cta: "Ver Pro",
     featured: true,
+    tone: "blue",
   },
   {
     eyebrow: "Enterprise",
     title: "Capacidad propia",
     badge: "Escala",
+    meta: "Sistema adaptado",
     description:
       "Cuando ya no buscas solo una herramienta, sino una logica adaptada a tus datos, procesos y forma de decidir.",
+    valueTitle: "Integrar y gobernar",
+    valueText: "capacidad propia",
     points: [
       "Integracion y gobernanza",
       "Sistema adaptado",
       "Escalabilidad real",
     ],
+    highlights: [
+      { label: "Ritmo", value: "Sostenido" },
+      { label: "Esfuerzo", value: "Alto" },
+      { label: "Enfoque", value: "Integrar" },
+    ],
+    summary:
+      "La complejidad ya es transversal y pide una logica conectada al negocio, no solo una herramienta aislada.",
+    icon: Network,
+    tone: "slate",
     href: "/enterprise",
     cta: "Ver Enterprise",
   },

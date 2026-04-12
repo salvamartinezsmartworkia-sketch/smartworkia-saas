@@ -14,21 +14,28 @@ import { getToolBySlug, getToolRequiredPlan } from "@/lib/tools-registry";
 export function proxy(request) {
   const { pathname, search } = request.nextUrl;
   const isTeachingAreaRoute = pathname.startsWith("/area-docente");
+  const isVirtualClassroomRoute = pathname.startsWith("/aula-virtual-demo");
+  const isCampusRoute = pathname.startsWith("/campus");
+  const isBypassedAdminRoute =
+    isTeachingAreaRoute || isVirtualClassroomRoute || isCampusRoute;
 
   const isPrivateRoute =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/tools") ||
     pathname.startsWith("/crm") ||
     pathname.startsWith("/admin") ||
-    isTeachingAreaRoute;
+    isBypassedAdminRoute;
   const isAdminRoute =
-    pathname.startsWith("/admin") || pathname.startsWith("/area-docente");
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/area-docente") ||
+    pathname.startsWith("/aula-virtual-demo") ||
+    pathname.startsWith("/campus");
 
   if (!isPrivateRoute) {
     return NextResponse.next();
   }
 
-  if (isTeachingAreaRoute) {
+  if (isBypassedAdminRoute) {
     return NextResponse.next();
   }
 
@@ -84,5 +91,7 @@ export const config = {
     "/crm/:path*",
     "/admin/:path*",
     "/area-docente/:path*",
+    "/aula-virtual-demo/:path*",
+    "/campus/:path*",
   ],
 };
