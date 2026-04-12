@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { Menu, X } from "lucide-react";
 
 const navItems = [
   { label: "Pagina principal", href: "/" },
@@ -18,144 +20,99 @@ const navItems = [
   },
 ];
 
-export default function PublicHeader() {
+function NavLink({ item, onNavigate }) {
+  if (!item.href) {
+    return (
+      <span className="rounded-xl px-3 py-2 text-base font-semibold text-slate-400">
+        {item.label}
+      </span>
+    );
+  }
+
+  if (item.external) {
+    return (
+      <a
+        href={item.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onNavigate}
+        className="rounded-xl px-3 py-2 text-base font-semibold text-slate-800 transition-colors hover:bg-blue-50 hover:text-blue-600"
+      >
+        {item.label}
+      </a>
+    );
+  }
+
   return (
-    <>
-      <header className="swia-header">
-        <div className="swia-header-container">
-          <Link href="/" className="swia-logo">
-            <img src="https://i.imgur.com/6og0aLG.png" alt="SmartWorkIA" />
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className="rounded-xl px-3 py-2 text-base font-semibold text-slate-800 transition-colors hover:bg-blue-50 hover:text-blue-600"
+    >
+      {item.label}
+    </Link>
+  );
+}
+
+export default function PublicHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-sm">
+      <div className="mx-auto flex min-h-[78px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 xl:px-10">
+        <Link href="/" className="flex items-center">
+          <img
+            src="https://i.imgur.com/6og0aLG.png"
+            alt="SmartWorkIA"
+            className="h-12 w-auto sm:h-14"
+          />
+        </Link>
+
+        <nav className="hidden items-center gap-2 xl:flex">
+          {navItems.map((item) => (
+            <NavLink key={item.label} item={item} />
+          ))}
+        </nav>
+
+        <div className="hidden xl:block">
+          <Link
+            href="/login"
+            className="inline-flex min-h-[46px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-800 transition-colors hover:border-slate-900 hover:bg-slate-900 hover:text-white"
+          >
+            Acceder
           </Link>
+        </div>
 
-          <nav className="swia-nav">
-            {navItems.map((item) =>
-              item.href ? (
-                item.external ? (
-                  <a
-                    key={item.label}
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <Link key={item.label} href={item.href}>
-                    {item.label}
-                  </Link>
-                )
-              ) : (
-                <span key={item.label} aria-disabled="true">
-                  {item.label}
-                </span>
-              )
-            )}
-          </nav>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((current) => !current)}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-900 xl:hidden"
+          aria-label={menuOpen ? "Cerrar menu" : "Abrir menu"}
+        >
+          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
 
-          <div className="swia-actions">
-            <Link href="/login" className="swia-login-btn">
+      {menuOpen ? (
+        <div className="border-t border-slate-200 bg-white xl:hidden">
+          <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-4 sm:px-6 lg:px-8 xl:px-10">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.label}
+                item={item}
+                onNavigate={() => setMenuOpen(false)}
+              />
+            ))}
+            <Link
+              href="/login"
+              onClick={() => setMenuOpen(false)}
+              className="mt-2 inline-flex min-h-[48px] items-center justify-center rounded-xl bg-slate-900 px-5 text-sm font-bold text-white transition-colors hover:bg-blue-700"
+            >
               Acceder
             </Link>
           </div>
         </div>
-      </header>
-
-      <style jsx>{`
-        .swia-header {
-          width: 100%;
-          background: #ffffff;
-          border-bottom: 1px solid #e9edf3;
-          box-shadow: 0 2px 10px rgba(22, 44, 75, 0.04);
-        }
-
-        .swia-header-container {
-          max-width: 1280px;
-          margin: 0 auto;
-          min-height: 82px;
-          padding: 0 32px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 24px;
-        }
-
-        .swia-logo {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          text-decoration: none;
-          flex-shrink: 0;
-        }
-
-        .swia-logo img {
-          height: 65px;
-          width: auto;
-        }
-
-        .swia-nav {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-          justify-content: center;
-        }
-
-        .swia-nav :global(a),
-        .swia-nav span {
-          text-decoration: none;
-          color: #162c4b;
-          font-size: 17px;
-          font-weight: 600;
-          padding: 10px 14px;
-          border-radius: 10px;
-          transition: all 0.2s ease;
-        }
-
-        .swia-nav :global(a:hover) {
-          color: #1e83e4;
-          background: rgba(30, 131, 228, 0.06);
-        }
-
-        .swia-nav span {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-
-        .swia-actions {
-          flex-shrink: 0;
-        }
-
-        .swia-login-btn {
-          text-decoration: none;
-          color: #162c4b;
-          font-size: 16px;
-          font-weight: 700;
-          padding: 11px 18px;
-          border: 1px solid rgba(22, 44, 75, 0.12);
-          border-radius: 12px;
-          background: #ffffff;
-          transition: all 0.2s ease;
-        }
-
-        .swia-login-btn:hover {
-          background: #162c4b;
-          color: #ffffff;
-          border-color: #162c4b;
-        }
-
-        @media (max-width: 1100px) {
-          .swia-header-container {
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 20px;
-          }
-
-          .swia-nav {
-            width: 100%;
-            justify-content: flex-start;
-          }
-        }
-      `}</style>
-    </>
+      ) : null}
+    </header>
   );
 }
