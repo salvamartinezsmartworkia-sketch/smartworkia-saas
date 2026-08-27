@@ -1,0 +1,24 @@
+name: Supabase keepalive
+
+on:
+  schedule:
+    # 08:17 UTC each day. The non-round minute reduces congestion on GitHub's scheduler.
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Supabase activity
+        env:
+          KEEPALIVE_URL: ${{ secrets.APP_KEEPALIVE_URL }}
+          KEEPALIVE_SECRET: ${{ secrets.SUPABASE_KEEPALIVE_SECRET }}
+        run: |
+          test -n "$KEEPALIVE_URL"
+          test -n "$KEEPALIVE_SECRET"
+          curl --fail --silent --show-error \
+            --retry 2 \
+            --retry-delay 10 \
+            --header "x-keepalive-secret: $KEEPALIVE_SECRET" \
+            "$KEEPALIVE_URL"
