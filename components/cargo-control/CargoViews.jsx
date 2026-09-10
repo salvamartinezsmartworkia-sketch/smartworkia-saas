@@ -6,7 +6,6 @@ import {
   Container, Download, Eye, FileText, Filter, Package, Pencil, Plane, Plus, Search,
   Send, Ship, Truck, Upload, XCircle,
 } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import styles from "./CargoControl.module.css";
 
 export const MODE_LABELS = { sea: "Marítimo", air: "Aéreo", road: "Carretera" };
@@ -92,14 +91,91 @@ function buildIntelligence(overview) {
   return { active, delayed, riskOrders, attention: attention.slice(0, 8), orderLineById };
 }
 
+function buildArrivalAgenda(overview, activeShipments) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(today.getTime() + 13 * dayMs);
+  const orderLineById = new Map(overview.orderLines.rows.map((line) => [line.id, line]));
+  const orderById = new Map(overview.orders.rows.map((order) => [order.id, order]));
+  const supplierById = new Map(overview.suppliers.rows.map((supplier) => [supplier.id, supplier]));
+  const groups = new Map();
+
+  activeShipments
+    .filter((shipment) => {
+      if (!shipment.estimated_arrival_at) return false;
+      const eta = new Date(shipment.estimated_arrival_at);
+      return eta >= today && eta < new Date(end.getTime() + dayMs);
+    })
+    .sort((a, b) => new Date(a.estimated_arrival_at) - new Date(b.estimated_arrival_at))
+    .forEach((shipment) => {
+      const linkedLines = overview.shipmentLines.rows
+        .filter((link) => link.shipment_id === shipment.id)
+        .map((link) => orderLineById.get(link.purchase_order_line_id))
+        .filter(Boolean);
+      const orders = [...new Map(linkedLines.map((line) => [line.purchase_order_id, orderById.get(line.purchase_order_id)]).filter(([, order]) => order)).values()];
+      const suppliers = [...new Set(orders.map((order) => supplierById.get(order.supplier_id)?.name).filter(Boolean))];
+      const available = addDays(shipment.estimated_arrival_at, shipment.destination_days);
+      const riskLines = linkedLines.filter((line) => line.need_date && available && available.getTime() > new Date(line.need_date).getTime());
+      const earliestNeed = riskLines.map((line) => line.need_date).sort()[0] || null;
+      const eta = new Date(shipment.estimated_arrival_at);
+      eta.setHours(0, 0, 0, 0);
+      const key = eta.toISOString().slice(0, 10);
+      if (!groups.has(key)) groups.set(key, { date: eta, shipments: [] });
+      groups.get(key).shipments.push({
+        ...shipment,
+        orders,
+        lineCount: linkedLines.length,
+        supplierLabel: suppliers.length > 1 ? `${suppliers[0]} +${suppliers.length - 1}` : suppliers[0] || "Proveedor pendiente",
+        available,
+        earliestNeed,
+        delay: dayDiff(shipment.initial_arrival_at, shipment.estimated_arrival_at),
+      });
+    });
+
+  return { groups: [...groups.values()], total: [...groups.values()].reduce((sum, group) => sum + group.shipments.length, 0), today };
+}
+
+function ArrivalAgenda({ overview, shipments, onOpen, onNavigate }) {
+  const agenda = useMemo(() => buildArrivalAgenda(overview, shipments), [overview, shipments]);
+  if (!agenda.total) return <EmptyState icon={CalendarClock} title="Todavía no hay llegadas previstas" text="Crea un envío o importa el Excel general para construir automáticamente la agenda de los próximos 14 días." action="Crear envío" onAction={() => onNavigate("shipments", true)} secondary="Importar Excel" onSecondary={() => onNavigate("import")} />;
+
+  return <div className={styles.arrivalAgenda}>
+    {agenda.groups.map((group) => {
+      const isToday = group.date.getTime() === agenda.today.getTime();
+      return <section className={styles.arrivalDayGroup} key={group.date.toISOString()}>
+        <div className={`${styles.arrivalDate} ${isToday ? styles.arrivalDateToday : ""}`}>
+          <strong>{isToday ? "HOY" : group.date.toLocaleDateString("es-ES", { day: "2-digit" })}</strong>
+          <span>{group.date.toLocaleDateString("es-ES", { weekday: "long", month: "long" })}</span>
+        </div>
+        <div className={styles.arrivalRows}>
+          {group.shipments.map((shipment) => {
+            const orderLabel = shipment.orders.length ? shipment.orders.map((order) => order.order_number).join(", ") : "Sin pedidos asignados";
+            const risk = Boolean(shipment.earliestNeed);
+            return <button className={styles.arrivalCard} key={shipment.id} onClick={() => onOpen(shipment)}>
+              <span className={`${styles.arrivalMode} ${styles[`arrivalMode_${shipment.mode}`]}`}><ModeIcon mode={shipment.mode} /></span>
+              <span className={styles.arrivalIdentity}>
+                <b>{shipment.tracking_reference || shipment.shipment_number}{shipment.transport_name ? ` · ${shipment.transport_name}` : ""}</b>
+                <small>{orderLabel} · {shipment.lineCount} {shipment.lineCount === 1 ? "línea" : "líneas"} · {shipment.supplierLabel}</small>
+              </span>
+              <span className={styles.arrivalRoute}>
+                <b>{shipment.origin || "Origen pendiente"} → {shipment.destination || "Destino pendiente"}</b>
+                <small>Disponible estimado: {shipment.available ? fmtShortDate(shipment.available) : "sin previsión"}</small>
+              </span>
+              <span className={styles.arrivalSignal}>
+                {risk ? <b className={styles.arrivalRisk}>Necesidad {fmtShortDate(shipment.earliestNeed)}</b> : shipment.delay > 0 ? <b className={styles.arrivalLate}>Retraso +{shipment.delay} {shipment.delay === 1 ? "día" : "días"}</b> : <b className={styles.arrivalOnTime}>En hora</b>}
+                <small>{STATUS_LABELS[shipment.status] || shipment.status}</small>
+              </span>
+              <ArrowRight className={styles.arrivalOpen} />
+            </button>;
+          })}
+        </div>
+      </section>;
+    })}
+  </div>;
+}
+
 export function DashboardView({ overview, onNavigate, onOpenShipment, onEditRecord }) {
   const intelligence = useMemo(() => buildIntelligence(overview), [overview]);
-  const horizon = useMemo(() => Array.from({ length: 14 }, (_, index) => {
-    const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + index);
-    const key = date.toISOString().slice(0, 10);
-    const matching = intelligence.active.filter((row) => row.estimated_arrival_at?.slice(0, 10) === key);
-    return { date: date.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }), total: matching.length, mar: matching.filter((row) => row.mode === "sea").length, aire: matching.filter((row) => row.mode === "air").length, carretera: matching.filter((row) => row.mode === "road").length };
-  }), [intelligence.active]);
   const metrics = [
     [intelligence.active.filter((row) => row.mode === "sea").length, "Contenedores activos", Container, "shipments"],
     [intelligence.active.filter((row) => row.mode === "air").length, "Envíos aéreos", Plane, "shipments"],
@@ -111,8 +187,8 @@ export function DashboardView({ overview, onNavigate, onOpenShipment, onEditReco
     <section className={styles.metrics}>{metrics.map(([value, label, Icon, target]) => <button className={value && ["Envíos retrasados", "Pedidos en riesgo"].includes(label) ? styles.metricAlert : ""} key={label} onClick={() => onNavigate(target)}><div><span>{label}</span><Icon /></div><strong>{String(value).padStart(2, "0")}</strong><p>{value ? "Revisar información operativa" : "Sin incidencias abiertas"}</p></button>)}</section>
     <section className={styles.controlGrid}>
       <article className={styles.panel}>
-        <div className={styles.sectionTitle}><div><span>HORIZONTE DE LLEGADAS</span><h2>Próximos 14 días</h2></div><CalendarClock /></div>
-        {horizon.some((day) => day.total) ? <div className={styles.chart}><ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 820, height: 278 }}><BarChart data={horizon} margin={{ top: 8, right: 8, left: -25, bottom: 0 }}><CartesianGrid vertical={false} stroke="#e7edf3" /><XAxis dataKey="date" tick={{ fontSize: 11 }} interval={1} /><YAxis allowDecimals={false} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="mar" name="Marítimo" stackId="a" fill="#138a8f" radius={[4, 4, 0, 0]} /><Bar dataKey="aire" name="Aéreo" stackId="a" fill="#3388d9" /><Bar dataKey="carretera" name="Carretera" stackId="a" fill="#e9a23b" /></BarChart></ResponsiveContainer></div> : <EmptyState icon={CalendarClock} title="Todavía no hay llegadas previstas" text="Crea un envío o importa el Excel general para construir automáticamente el horizonte." action="Crear envío" onAction={() => onNavigate("shipments", true)} secondary="Importar Excel" onSecondary={() => onNavigate("import")} />}
+        <div className={styles.sectionTitle}><div><span>AGENDA LOGÍSTICA INTELIGENTE</span><h2>Próximas llegadas</h2><small className={styles.sectionSubtitle}>Qué llega, dónde y qué requiere atención durante los próximos 14 días.</small></div><CalendarClock /></div>
+        <ArrivalAgenda overview={overview} shipments={intelligence.active} onOpen={onOpenShipment} onNavigate={onNavigate} />
       </article>
       <article className={`${styles.panel} ${styles.attentionPanel}`}>
         <div className={styles.sectionTitle}><div><span>CONTROL DE EXCEPCIONES</span><h2>Necesitan tu atención</h2></div><b>{intelligence.attention.length}</b></div>
