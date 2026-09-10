@@ -279,7 +279,8 @@ export default function CargoControlShell() {
     const link = document.createElement("a"); link.href = url; link.download = `previsiones-cargo-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url);
   }
 
-  if (state.loading && !workspace) return <main className={styles.center}><RefreshCw className={styles.spin} /> Cargando torre de control…</main>;
+  if (state.loading) return <main className={styles.center}><RefreshCw className={styles.spin} /> Cargando torre de control…</main>;
+  if (state.error && !overview) return <main className={styles.center}><h1>Cargo Control</h1><p>{state.error}</p><button className={styles.secondary} onClick={refresh}><RefreshCw />Reintentar</button></main>;
   if (!workspace?.organization) return <main className={styles.center}><h1>Cargo Control</h1><p>Tu usuario todavía no pertenece a una organización.</p></main>;
 
   const descriptions = {
