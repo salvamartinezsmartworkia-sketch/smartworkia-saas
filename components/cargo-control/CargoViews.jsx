@@ -72,6 +72,16 @@ function buildIntelligence(overview) {
   const shipments = overview.shipments.rows;
   const active = shipments.filter((row) => ACTIVE_SHIPMENT.has(row.status));
   const delayed = active.filter((row) => dayDiff(row.initial_arrival_at, row.estimated_arrival_at) > 0);
+  const etaMissing = active.filter((row) => !row.estimated_arrival_at);
+  const bookingPending = overview.requests.rows.filter((row) => ["requested", "quoted", "approved"].includes(row.status) && !row.booking_reference);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const agendaLimit = new Date(today.getTime() + 14 * dayMs);
+  const upcomingArrivals = active.filter((row) => {
+    if (!row.estimated_arrival_at) return false;
+    const eta = new Date(row.estimated_arrival_at);
+    return eta >= today && eta < agendaLimit;
+  });
   const orderLineById = new Map(overview.orderLines.rows.map((line) => [line.id, line]));
   const shipmentByLine = new Map();
   for (const link of overview.shipmentLines.rows) shipmentByLine.set(link.purchase_order_line_id, shipments.find((shipment) => shipment.id === link.shipment_id));
@@ -82,13 +92,13 @@ function buildIntelligence(overview) {
     return !shipment || (available && available.getTime() > new Date(line.need_date).getTime());
   }));
   const attention = [];
-  delayed.forEach((row) => attention.push({ type: "delay", title: `${row.shipment_number} acumula ${dayDiff(row.initial_arrival_at, row.estimated_arrival_at)} días`, text: `${row.origin || "Origen"} → ${row.destination || "Destino"}`, row }));
-  riskOrders.forEach((row) => attention.push({ type: "risk", title: `Pedido ${row.order_number} en riesgo`, text: `La disponibilidad prevista no cubre la necesidad`, row }));
-  overview.requests.rows.filter((row) => ["requested", "quoted", "approved"].includes(row.status) && !row.booking_reference).forEach((row) => attention.push({ type: "booking", title: `${row.request_number} sin booking`, text: "Pendiente de confirmación del transitario", row }));
-  active.filter((row) => !row.estimated_arrival_at).forEach((row) => attention.push({ type: "eta", title: `${row.shipment_number} sin ETA`, text: "Completa la previsión de llegada", row }));
+  riskOrders.forEach((row) => attention.push({ type: "risk", title: `Revisar pedido ${row.order_number}`, text: "La disponibilidad prevista no cubre la fecha de necesidad", action: "Abrir pedido", row }));
+  bookingPending.forEach((row) => attention.push({ type: "booking", title: `Confirmar booking ${row.request_number}`, text: "Solicitud aprobada o cotizada sin referencia de booking", action: "Abrir solicitud", row }));
+  etaMissing.forEach((row) => attention.push({ type: "eta", title: `Completar ETA de ${row.shipment_number}`, text: "Sin fecha prevista no se puede calcular disponibilidad", action: "Abrir envío", row }));
+  delayed.forEach((row) => attention.push({ type: "delay", title: `Actualizar retraso de ${row.shipment_number}`, text: `${dayDiff(row.initial_arrival_at, row.estimated_arrival_at)} días de desviación · ${row.origin || "Origen"} → ${row.destination || "Destino"}`, action: "Abrir envío", row }));
   const now = new Date();
-  overview.vessels.rows.filter((row) => row.cutoff_at && new Date(row.cutoff_at) >= now && new Date(row.cutoff_at).getTime() - now.getTime() <= 2 * dayMs).forEach((row) => attention.push({ type: "cutoff", title: `Cut-off próximo · ${row.vessel_name}`, text: `${fmtDate(row.cutoff_at)} · ${row.origin_port}`, row }));
-  return { active, delayed, riskOrders, attention: attention.slice(0, 8), orderLineById };
+  overview.vessels.rows.filter((row) => row.cutoff_at && new Date(row.cutoff_at) >= now && new Date(row.cutoff_at).getTime() - now.getTime() <= 2 * dayMs).forEach((row) => attention.push({ type: "cutoff", title: `Preparar cut-off · ${row.vessel_name}`, text: `${fmtDate(row.cutoff_at)} · ${row.origin_port}`, action: "Abrir barco", row }));
+  return { active, delayed, etaMissing, bookingPending, upcomingArrivals, riskOrders, attention: attention.slice(0, 8), orderLineById };
 }
 
 function buildArrivalAgenda(overview, activeShipments) {
@@ -177,27 +187,24 @@ function ArrivalAgenda({ overview, shipments, onOpen, onNavigate }) {
 export function DashboardView({ overview, onNavigate, onOpenShipment, onEditRecord }) {
   const intelligence = useMemo(() => buildIntelligence(overview), [overview]);
   const metrics = [
-    [intelligence.active.filter((row) => row.mode === "sea").length, "Contenedores activos", Container, "shipments"],
-    [intelligence.active.filter((row) => row.mode === "air").length, "Envíos aéreos", Plane, "shipments"],
-    [intelligence.active.filter((row) => row.mode === "road").length, "Camiones activos", Truck, "shipments"],
-    [intelligence.delayed.length, "Envíos retrasados", CalendarClock, "shipments"],
-    [intelligence.riskOrders.length, "Pedidos en riesgo", AlertTriangle, "orders"],
+    [intelligence.upcomingArrivals.length, "Llegadas 14 días", CalendarClock, "shipments", "Qué entra en el horizonte operativo"],
+    [intelligence.attention.length, "Prioridades abiertas", AlertTriangle, "dashboard", "Acciones que requieren decisión"],
+    [intelligence.bookingPending.length, "Bookings pendientes", Send, "requests", "Solicitudes sin confirmación"],
+    [intelligence.delayed.length, "Envíos retrasados", Truck, "shipments", "ETA desplazada frente a la inicial"],
+    [intelligence.riskOrders.length, "Pedidos en riesgo", Package, "orders", "Disponibilidad posterior a necesidad"],
   ];
+  const openPriority = (item) => item.type === "delay" || item.type === "eta" ? onOpenShipment(item.row) : onEditRecord(item.type === "risk" ? "orders" : item.type === "booking" ? "requests" : "vessels", item.row);
   return <>
-    <section className={styles.metrics}>{metrics.map(([value, label, Icon, target]) => <button className={value && ["Envíos retrasados", "Pedidos en riesgo"].includes(label) ? styles.metricAlert : ""} key={label} onClick={() => onNavigate(target)}><div><span>{label}</span><Icon /></div><strong>{String(value).padStart(2, "0")}</strong><p>{value ? "Revisar información operativa" : "Sin incidencias abiertas"}</p></button>)}</section>
+    <section className={styles.metrics}>{metrics.map(([value, label, Icon, target, text]) => <button className={value && ["Prioridades abiertas", "Bookings pendientes", "Envíos retrasados", "Pedidos en riesgo"].includes(label) ? styles.metricAlert : ""} key={label} onClick={() => onNavigate(target)}><div><span>{label}</span><Icon /></div><strong>{String(value).padStart(2, "0")}</strong><p>{value ? text : "Sin incidencias abiertas"}</p></button>)}</section>
     <section className={styles.controlGrid}>
       <article className={styles.panel}>
         <div className={styles.sectionTitle}><div><span>AGENDA LOGÍSTICA INTELIGENTE</span><h2>Próximas llegadas</h2><small className={styles.sectionSubtitle}>Qué llega, dónde y qué requiere atención durante los próximos 14 días.</small></div><CalendarClock /></div>
         <ArrivalAgenda overview={overview} shipments={intelligence.active} onOpen={onOpenShipment} onNavigate={onNavigate} />
       </article>
       <article className={`${styles.panel} ${styles.attentionPanel}`}>
-        <div className={styles.sectionTitle}><div><span>CONTROL DE EXCEPCIONES</span><h2>Necesitan tu atención</h2></div><b>{intelligence.attention.length}</b></div>
-        {intelligence.attention.length ? <div className={styles.attentionList}>{intelligence.attention.map((item, index) => <button key={`${item.type}-${item.row.id}-${index}`} onClick={() => item.type === "delay" || item.type === "eta" ? onOpenShipment(item.row) : onEditRecord(item.type === "risk" ? "orders" : item.type === "booking" ? "requests" : "vessels", item.row)}><span className={styles[`attention_${item.type}`]}><AlertTriangle /></span><div><b>{item.title}</b><small>{item.text}</small></div><ArrowRight /></button>)}</div> : <div className={styles.allClear}><CheckCircle2 /><h3>Todo bajo control</h3><p>No hay retrasos, riesgos ni confirmaciones pendientes.</p></div>}
+        <div className={styles.sectionTitle}><div><span>PRIORIDADES OPERATIVAS</span><h2>Qué resolver ahora</h2><small className={styles.sectionSubtitle}>Acciones concretas ordenadas por impacto operativo.</small></div><b>{intelligence.attention.length}</b></div>
+        {intelligence.attention.length ? <div className={styles.attentionList}>{intelligence.attention.map((item, index) => <button key={`${item.type}-${item.row.id}-${index}`} onClick={() => openPriority(item)}><span className={styles[`attention_${item.type}`]}><AlertTriangle /></span><div><b>{item.title}</b><small>{item.text}</small><em>{item.action}</em></div><ArrowRight /></button>)}</div> : <div className={styles.allClear}><CheckCircle2 /><h3>Todo bajo control</h3><p>No hay acciones críticas pendientes en pedidos, bookings o llegadas.</p></div>}
       </article>
-    </section>
-    <section className={styles.panel}>
-      <div className={styles.sectionTitle}><div><span>SEGUIMIENTO DE ENVÍOS</span><h2>Operaciones activas</h2></div><button className={styles.textButton} onClick={() => onNavigate("shipments")}>Ver todos <ArrowRight /></button></div>
-      <ShipmentsTable rows={intelligence.active.slice(0, 7)} overview={overview} onOpen={onOpenShipment} onEdit={(row) => onEditRecord("shipments", row)} compact />
     </section>
   </>;
 }
