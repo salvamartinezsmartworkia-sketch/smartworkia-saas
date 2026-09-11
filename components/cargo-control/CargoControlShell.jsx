@@ -159,6 +159,7 @@ export default function CargoControlShell() {
   const [view, setView] = useState("dashboard");
   const [state, setState] = useState({ loading: true, busy: false, error: "" });
   const [query, setQuery] = useState("");
+  const [quickFilter, setQuickFilter] = useState(null);
   const [editor, setEditor] = useState(null);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [file, setFile] = useState(null);
@@ -245,8 +246,8 @@ export default function CargoControlShell() {
     finally { setState((current) => ({ ...current, busy: false })); }
   }
 
-  function navigate(target, create = false) {
-    setView(target); setQuery("");
+  function navigate(target, create = false, filter = null) {
+    setView(target); setQuery(""); setQuickFilter(filter);
     if (create && ["orders", "requests", "vessels", "shipments", "quotes"].includes(target)) setEditor({ kind: target, row: blankFor(target, workspace.user.id) });
   }
 
@@ -294,7 +295,7 @@ export default function CargoControlShell() {
   const lastUpdate = [...overview.shipments.rows, ...overview.orders.rows, ...overview.requests.rows, ...overview.vessels.rows]
     .map((row) => row.updated_at || row.created_at).filter(Boolean).sort().at(-1);
   return <div className={styles.app}>
-    <aside className={styles.sidebar}><div className={styles.brand}><span><Container /></span><div>CARGO<b>CONTROL</b><small>SMARTWORKIA · LOGISTICS</small></div></div><nav>{NAV.map(([key, label, Icon]) => <button key={key} className={view === key ? styles.navActive : ""} onClick={() => { setView(key); setQuery(""); }}><Icon /><span>{label}</span>{overview?.[key]?.count > 0 && <b>{overview[key].count}</b>}</button>)}</nav><footer><Anchor /><div><b>Una visión de toda tu carga</b><small>Del origen al material disponible.</small></div><span className={styles.version}>V2 · Supabase</span></footer></aside>
+    <aside className={styles.sidebar}><div className={styles.brand}><span><Container /></span><div>CARGO<b>CONTROL</b><small>SMARTWORKIA · LOGISTICS</small></div></div><nav>{NAV.map(([key, label, Icon]) => <button key={key} className={view === key ? styles.navActive : ""} onClick={() => { setView(key); setQuery(""); setQuickFilter(null); }}><Icon /><span>{label}</span>{overview?.[key]?.count > 0 && <b>{overview[key].count}</b>}</button>)}</nav><footer><Anchor /><div><b>Una visión de toda tu carga</b><small>Del origen al material disponible.</small></div><span className={styles.version}>V2 · Supabase</span></footer></aside>
     <main className={styles.main}><header className={styles.topbar}><div><span>Operaciones</span><ArrowRight /><b>{NAV.find(([key]) => key === view)?.[1]}</b></div><div><span>{lastUpdate ? `Actualizado ${fmtDate(lastUpdate)}` : "Sin actividad registrada"}</span><span>{workspace.organization.name} · {workspace.membership.role}</span><button onClick={refresh} disabled={state.loading}><RefreshCw className={state.loading ? styles.spin : ""} />Actualizar</button></div></header>
       <div className={styles.workspace}>
         <section className={styles.heading}><div><span>TORRE DE CONTROL</span><h1>{NAV.find(([key]) => key === view)?.[1]}</h1><p>{descriptions[view]}</p></div><div className={styles.headingActions}>
@@ -308,8 +309,8 @@ export default function CargoControlShell() {
           {view === "partners" && <><button className={styles.secondary} onClick={() => createRecord("forwarders")}><Plus />Transitario</button><button className={styles.primary} onClick={() => createRecord("suppliers")}><Plus />Proveedor</button></>}
         </div></section>
         {state.error && <div className={styles.error}>{state.error}</div>}
-        {view === "dashboard" && <DashboardView overview={overview} onNavigate={navigate} onOpenShipment={setSelectedShipment} onEditRecord={(kind, row) => setEditor({ kind, row })} />}
-        {["orders", "requests", "vessels", "shipments", "forecasts", "partners", "quotes", "documents"].includes(view) && <OperationalModule key={view} view={view} overview={overview} query={query} setQuery={setQuery} onCreate={createRecord} onEdit={(kind, row) => setEditor({ kind, row })} onOpenShipment={setSelectedShipment} onRetire={retireRecord} onNavigate={navigate} onOpenDocument={(row) => getCargoDocumentUrl(row.storage_path).then((url) => window.open(url, "_blank", "noopener,noreferrer"))} onDeleteDocument={(row) => removeRecord("documents", row)} />}
+        {view === "dashboard" && <DashboardView overview={overview} quickFilter={quickFilter} onNavigate={navigate} onOpenShipment={setSelectedShipment} onEditRecord={(kind, row) => setEditor({ kind, row })} />}
+        {["orders", "requests", "vessels", "shipments", "forecasts", "partners", "quotes", "documents"].includes(view) && <OperationalModule key={`${view}-${quickFilter?.key || "all"}`} view={view} overview={overview} query={query} setQuery={setQuery} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} onCreate={createRecord} onEdit={(kind, row) => setEditor({ kind, row })} onOpenShipment={setSelectedShipment} onRetire={retireRecord} onNavigate={navigate} onOpenDocument={(row) => getCargoDocumentUrl(row.storage_path).then((url) => window.open(url, "_blank", "noopener,noreferrer"))} onDeleteDocument={(row) => removeRecord("documents", row)} />}
         {view === "documents" && <form className={styles.uploadBar} onSubmit={uploadDocument}><Upload /><div><b>Adjuntar documento privado</b><span>Elige exactamente el pedido, solicitud, envío, cotización, barco o empresa.</span></div><select required value={documentTarget} onChange={(e) => setDocumentTarget(e.target.value)}><option value="">Vincular documento a…</option>{documentTargets.map((target) => <option key={`${target.type}:${target.id}`} value={`${target.type}:${target.id}`}>{target.label}</option>)}</select><input type="file" accept=".pdf,.xlsx,.csv,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] || null)} /><button className={styles.primary} disabled={!file || !documentTarget || state.busy}>Subir</button></form>}
         {view === "import" && <CargoImportPanel workspace={workspace} busy={state.busy} setBusy={(busy) => setState((current) => ({ ...current, busy }))} onComplete={refresh} />}
         {view === "connections" && <><div className={styles.connectionNotice}><Link2 /><div><b>Un punto de entrada para cada fuente</b><span>Los enlaces abren el portal oficial. Cargo Control no transmite pedidos ni contenido de la carga.</span></div></div><section className={styles.connectionGrid}>{[["MarineTraffic", Ship, "Consulta externa disponible", "Seguimiento oficial por IMO o nombre del buque.", "https://www.marinetraffic.com/"], ["Flightradar24", Plane, "Consulta externa disponible", "Consulta del vuelo en una pestaña externa.", "https://www.flightradar24.com/"], ["Navieras y transitarios", Container, "Pendiente de integración", "Eventos de salida, transbordo y llegada con acceso autorizado.", "https://developer.maersk.com/catalogue"], ["Transporte por carretera", Truck, "Listo para enlaces GPS", "Enlace manual al sistema del operador desde cada envío.", ""]].map(([name, Icon, status, text, url]) => <article className={styles.panel} key={name}><div className={styles.connectionStatus}><Icon /><span>{status}</span></div><h2>{name}</h2><p>{text}</p>{url && <a href={url} target="_blank" rel="noreferrer">Abrir servicio <ExternalLink /></a>}</article>)}</section></>}

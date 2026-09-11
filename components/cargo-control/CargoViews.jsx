@@ -145,6 +145,21 @@ function buildArrivalAgenda(overview, activeShipments) {
   return { groups: [...groups.values()], total: [...groups.values()].reduce((sum, group) => sum + group.shipments.length, 0), today };
 }
 
+function byQuickFilter(rows, quickFilter) {
+  if (!quickFilter?.ids) return rows;
+  const ids = new Set(quickFilter.ids);
+  return rows.filter((row) => ids.has(row.id));
+}
+
+function QuickFilterBanner({ quickFilter, count, onClear }) {
+  if (!quickFilter) return null;
+  return <div className={styles.quickFilterBanner}>
+    <Filter />
+    <div><b>{quickFilter.label}</b><span>{count} {count === 1 ? "registro coincide" : "registros coinciden"} con la tarjeta seleccionada.</span></div>
+    <button className={styles.secondary} onClick={onClear}>Ver todos</button>
+  </div>;
+}
+
 function ArrivalAgenda({ overview, shipments, onOpen, onNavigate }) {
   const agenda = useMemo(() => buildArrivalAgenda(overview, shipments), [overview, shipments]);
   if (!agenda.total) return <EmptyState icon={CalendarClock} title="Todavía no hay llegadas previstas" text="Crea un envío o importa el Excel general para construir automáticamente la agenda de los próximos 14 días." action="Crear envío" onAction={() => onNavigate("shipments", true)} secondary="Importar Excel" onSecondary={() => onNavigate("import")} />;
@@ -184,26 +199,30 @@ function ArrivalAgenda({ overview, shipments, onOpen, onNavigate }) {
   </div>;
 }
 
-export function DashboardView({ overview, onNavigate, onOpenShipment, onEditRecord }) {
+export function DashboardView({ overview, quickFilter, onNavigate, onOpenShipment, onEditRecord }) {
   const intelligence = useMemo(() => buildIntelligence(overview), [overview]);
   const metrics = [
-    [intelligence.upcomingArrivals.length, "Llegadas 14 días", CalendarClock, "shipments", "Qué entra en el horizonte operativo"],
-    [intelligence.attention.length, "Prioridades abiertas", AlertTriangle, "dashboard", "Acciones que requieren decisión"],
-    [intelligence.bookingPending.length, "Bookings pendientes", Send, "requests", "Solicitudes sin confirmación"],
-    [intelligence.delayed.length, "Envíos retrasados", Truck, "shipments", "ETA desplazada frente a la inicial"],
-    [intelligence.riskOrders.length, "Pedidos en riesgo", Package, "orders", "Disponibilidad posterior a necesidad"],
+    { value: intelligence.upcomingArrivals.length, label: "Llegadas 14 días", Icon: CalendarClock, target: "shipments", text: "Qué entra en el horizonte operativo", filter: { key: "arrivals-14d", label: "Llegadas previstas durante los próximos 14 días", ids: intelligence.upcomingArrivals.map((row) => row.id) } },
+    { value: intelligence.attention.length, label: "Prioridades abiertas", Icon: AlertTriangle, target: "dashboard", text: "Acciones que requieren decisión", filter: { key: "priorities", label: "Prioridades operativas abiertas", ids: intelligence.attention.map((item) => item.row.id) } },
+    { value: intelligence.bookingPending.length, label: "Bookings pendientes", Icon: Send, target: "requests", text: "Solicitudes sin confirmación", filter: { key: "booking-pending", label: "Solicitudes pendientes de booking", ids: intelligence.bookingPending.map((row) => row.id) } },
+    { value: intelligence.delayed.length, label: "Envíos retrasados", Icon: Truck, target: "shipments", text: "ETA desplazada frente a la inicial", filter: { key: "delayed-shipments", label: "Envíos con retraso frente a la ETA inicial", ids: intelligence.delayed.map((row) => row.id) } },
+    { value: intelligence.riskOrders.length, label: "Pedidos en riesgo", Icon: Package, target: "orders", text: "Disponibilidad posterior a necesidad", filter: { key: "risk-orders", label: "Pedidos con riesgo de disponibilidad", ids: intelligence.riskOrders.map((row) => row.id) } },
   ];
+  const attentionItems = quickFilter?.key === "priorities"
+    ? intelligence.attention.filter((item) => quickFilter.ids.includes(item.row.id))
+    : intelligence.attention;
   const openPriority = (item) => item.type === "delay" || item.type === "eta" ? onOpenShipment(item.row) : onEditRecord(item.type === "risk" ? "orders" : item.type === "booking" ? "requests" : "vessels", item.row);
   return <>
-    <section className={styles.metrics}>{metrics.map(([value, label, Icon, target, text]) => <button className={value && ["Prioridades abiertas", "Bookings pendientes", "Envíos retrasados", "Pedidos en riesgo"].includes(label) ? styles.metricAlert : ""} key={label} onClick={() => onNavigate(target)}><div><span>{label}</span><Icon /></div><strong>{String(value).padStart(2, "0")}</strong><p>{value ? text : "Sin incidencias abiertas"}</p></button>)}</section>
+    <section className={styles.metrics}>{metrics.map(({ value, label, Icon, target, text, filter }) => <button className={value && ["Prioridades abiertas", "Bookings pendientes", "Envíos retrasados", "Pedidos en riesgo"].includes(label) ? styles.metricAlert : ""} key={label} onClick={() => onNavigate(target, false, filter)}><div><span>{label}</span><Icon /></div><strong>{String(value).padStart(2, "0")}</strong><p>{value ? text : "Sin incidencias abiertas"}</p></button>)}</section>
     <section className={styles.controlGrid}>
       <article className={styles.panel}>
         <div className={styles.sectionTitle}><div><span>AGENDA LOGÍSTICA INTELIGENTE</span><h2>Próximas llegadas</h2><small className={styles.sectionSubtitle}>Qué llega, dónde y qué requiere atención durante los próximos 14 días.</small></div><CalendarClock /></div>
         <ArrivalAgenda overview={overview} shipments={intelligence.active} onOpen={onOpenShipment} onNavigate={onNavigate} />
       </article>
       <article className={`${styles.panel} ${styles.attentionPanel}`}>
-        <div className={styles.sectionTitle}><div><span>PRIORIDADES OPERATIVAS</span><h2>Qué resolver ahora</h2><small className={styles.sectionSubtitle}>Acciones concretas ordenadas por impacto operativo.</small></div><b>{intelligence.attention.length}</b></div>
-        {intelligence.attention.length ? <div className={styles.attentionList}>{intelligence.attention.map((item, index) => <button key={`${item.type}-${item.row.id}-${index}`} onClick={() => openPriority(item)}><span className={styles[`attention_${item.type}`]}><AlertTriangle /></span><div><b>{item.title}</b><small>{item.text}</small><em>{item.action}</em></div><ArrowRight /></button>)}</div> : <div className={styles.allClear}><CheckCircle2 /><h3>Todo bajo control</h3><p>No hay acciones críticas pendientes en pedidos, bookings o llegadas.</p></div>}
+        <div className={styles.sectionTitle}><div><span>PRIORIDADES OPERATIVAS</span><h2>Qué resolver ahora</h2><small className={styles.sectionSubtitle}>Acciones concretas ordenadas por impacto operativo.</small></div><b>{attentionItems.length}</b></div>
+        {quickFilter?.key === "priorities" && <QuickFilterBanner quickFilter={quickFilter} count={attentionItems.length} onClear={() => onNavigate("dashboard")} />}
+        {attentionItems.length ? <div className={styles.attentionList}>{attentionItems.map((item, index) => <button key={`${item.type}-${item.row.id}-${index}`} onClick={() => openPriority(item)}><span className={styles[`attention_${item.type}`]}><AlertTriangle /></span><div><b>{item.title}</b><small>{item.text}</small><em>{item.action}</em></div><ArrowRight /></button>)}</div> : <div className={styles.allClear}><CheckCircle2 /><h3>Todo bajo control</h3><p>No hay acciones críticas pendientes en pedidos, bookings o llegadas.</p></div>}
       </article>
     </section>
   </>;
@@ -220,7 +239,7 @@ function ShipmentsTable({ rows, overview, onOpen, onEdit, onRetire, compact = fa
   })}</tbody></TableShell>;
 }
 
-export function OperationalModule({ view, overview, query, setQuery, onCreate, onEdit, onOpenShipment, onRetire, onNavigate, onOpenDocument, onDeleteDocument }) {
+export function OperationalModule({ view, overview, query, setQuery, quickFilter, onClearQuickFilter, onCreate, onEdit, onOpenShipment, onRetire, onNavigate, onOpenDocument, onDeleteDocument }) {
   const [mode, setMode] = useState("all");
   const [status, setStatus] = useState("all");
   const [partnerType, setPartnerType] = useState("all");
@@ -233,20 +252,20 @@ export function OperationalModule({ view, overview, query, setQuery, onCreate, o
   const statusFilter = <select aria-label="Filtrar por estado" value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">Todos los estados</option>{[...new Set((overview[view]?.rows || []).map((row) => row.status).filter(Boolean))].map((value) => <option key={value} value={value}>{STATUS_LABELS[value] || value}</option>)}</select>;
 
   if (view === "shipments") {
-    const rows = filterModeStatus(overview.shipments.rows);
-    return <section className={styles.panel}><ListTools query={query} setQuery={setQuery} placeholder="Envío, booking, contenedor, AWB, vuelo o ruta…">{modeFilter}{statusFilter}</ListTools><ShipmentsTable rows={rows} overview={overview} onOpen={onOpenShipment} onEdit={(row) => onEdit("shipments", row)} onRetire={(row) => onRetire("shipments", row)} /></section>;
+    const rows = byQuickFilter(filterModeStatus(overview.shipments.rows), quickFilter);
+    return <section className={styles.panel}><QuickFilterBanner quickFilter={quickFilter} count={rows.length} onClear={onClearQuickFilter} /><ListTools query={query} setQuery={setQuery} placeholder="Envío, booking, contenedor, AWB, vuelo o ruta…">{modeFilter}{statusFilter}</ListTools><ShipmentsTable rows={rows} overview={overview} onOpen={onOpenShipment} onEdit={(row) => onEdit("shipments", row)} onRetire={(row) => onRetire("shipments", row)} /></section>;
   }
 
   if (view === "orders") {
-    const rows = filterModeStatus(overview.orders.rows);
+    const rows = byQuickFilter(filterModeStatus(overview.orders.rows), quickFilter);
     const suppliers = new Map(overview.suppliers.rows.map((row) => [row.id, row]));
-    return <section className={styles.panel}><ModuleStats items={[[overview.orders.rows.filter((row) => !["delivered", "cancelled", "archived"].includes(row.status)).length, "Pedidos activos"], [new Set(overview.orders.rows.map((row) => row.supplier_id).filter(Boolean)).size, "Proveedores"], [overview.orderLines.rows.length, "Líneas de material"]]} /><ListTools query={query} setQuery={setQuery} placeholder="Pedido, proveedor, origen o material…">{statusFilter}</ListTools>{rows.length ? <TableShell><thead><tr><th>Pedido</th><th>Proveedor</th><th>Origen / Incoterm</th><th>Disponibilidad</th><th>Estado</th><th>Contenido</th><th>Acciones</th></tr></thead><tbody>{rows.map((row) => { const lines = overview.orderLines.rows.filter((line) => line.purchase_order_id === row.id); const units = lines.reduce((sum, line) => sum + Number(line.quantity || 0), 0); return <tr key={row.id}><td><b>{row.order_number}</b><small>{fmtDate(row.order_date)}</small></td><td>{suppliers.get(row.supplier_id)?.name || "Sin proveedor"}</td><td>{row.origin || suppliers.get(row.supplier_id)?.city || "—"}<small>{suppliers.get(row.supplier_id)?.incoterm || "Incoterm pendiente"}</small></td><td>{fmtDate(row.ready_date)}</td><td><StatusBadge value={row.status} /></td><td>{lines.length} líneas<small>{units.toLocaleString("es-ES")} unidades</small></td><td><ActionButtons onEdit={() => onEdit("orders", row)} onRetire={() => onRetire("orders", row)} retireLabel="Archivar" /></td></tr>; })}</tbody></TableShell> : <EmptyState icon={Package} title="Empieza por tus pedidos de compra" text="Crea un pedido manualmente o importa la plantilla general con sus materiales." action="Nuevo pedido" onAction={() => onCreate("orders")} secondary="Importar Excel" onSecondary={() => onNavigate("import")} />}</section>;
+    return <section className={styles.panel}><QuickFilterBanner quickFilter={quickFilter} count={rows.length} onClear={onClearQuickFilter} /><ModuleStats items={[[overview.orders.rows.filter((row) => !["delivered", "cancelled", "archived"].includes(row.status)).length, "Pedidos activos"], [new Set(overview.orders.rows.map((row) => row.supplier_id).filter(Boolean)).size, "Proveedores"], [overview.orderLines.rows.length, "Líneas de material"]]} /><ListTools query={query} setQuery={setQuery} placeholder="Pedido, proveedor, origen o material…">{statusFilter}</ListTools>{rows.length ? <TableShell><thead><tr><th>Pedido</th><th>Proveedor</th><th>Origen / Incoterm</th><th>Disponibilidad</th><th>Estado</th><th>Contenido</th><th>Acciones</th></tr></thead><tbody>{rows.map((row) => { const lines = overview.orderLines.rows.filter((line) => line.purchase_order_id === row.id); const units = lines.reduce((sum, line) => sum + Number(line.quantity || 0), 0); return <tr key={row.id}><td><b>{row.order_number}</b><small>{fmtDate(row.order_date)}</small></td><td>{suppliers.get(row.supplier_id)?.name || "Sin proveedor"}</td><td>{row.origin || suppliers.get(row.supplier_id)?.city || "—"}<small>{suppliers.get(row.supplier_id)?.incoterm || "Incoterm pendiente"}</small></td><td>{fmtDate(row.ready_date)}</td><td><StatusBadge value={row.status} /></td><td>{lines.length} líneas<small>{units.toLocaleString("es-ES")} unidades</small></td><td><ActionButtons onEdit={() => onEdit("orders", row)} onRetire={() => onRetire("orders", row)} retireLabel="Archivar" /></td></tr>; })}</tbody></TableShell> : <EmptyState icon={Package} title="No hay pedidos en este filtro" text="Limpia el filtro para ver todos los pedidos registrados." action={quickFilter ? "Ver todos" : "Nuevo pedido"} onAction={quickFilter ? onClearQuickFilter : () => onCreate("orders")} secondary={!quickFilter ? "Importar Excel" : null} onSecondary={() => onNavigate("import")} />}</section>;
   }
 
   if (view === "requests") {
-    const rows = filterModeStatus(overview.requests.rows);
+    const rows = byQuickFilter(filterModeStatus(overview.requests.rows), quickFilter);
     const vessels = new Map(overview.vessels.rows.map((row) => [row.id, row])); const forwarders = new Map(overview.forwarders.rows.map((row) => [row.id, row]));
-    return <section className={styles.panel}><ModuleStats items={[[overview.requests.rows.filter((row) => ["draft", "requested", "quoted", "approved"].includes(row.status)).length, "Pendientes"], [overview.requests.rows.filter((row) => row.status === "booked").length, "Confirmadas"], [overview.requests.rows.filter((row) => row.status === "cancelled").length, "Canceladas"]]} /><ListTools query={query} setQuery={setQuery} placeholder="Solicitud, barco, transitario, booking o ruta…">{modeFilter}{statusFilter}</ListTools>{rows.length ? <TableShell><thead><tr><th>Solicitud</th><th>Barco / ruta</th><th>Transitario</th><th>Pedidos</th><th>Estado</th><th>Booking</th><th>Acciones</th></tr></thead><tbody>{rows.map((row) => { const vessel = vessels.get(row.vessel_id); const orderCount = overview.requestOrders.rows.filter((link) => link.transport_request_id === row.id).length; return <tr key={row.id}><td><b>{row.request_number}</b><small>{MODE_LABELS[row.mode]}</small></td><td>{vessel?.vessel_name || "Sin barco asignado"}<small>{row.origin || vessel?.origin_port || "—"} → {row.destination || vessel?.destination_port || "—"}</small></td><td>{forwarders.get(row.forwarder_id)?.name || "Sin asignar"}</td><td>{orderCount}</td><td><StatusBadge value={row.status} /></td><td>{row.booking_reference || "Pendiente"}</td><td><ActionButtons onEdit={() => onEdit("requests", row)} onRetire={() => onRetire("requests", row)} /></td></tr>; })}</tbody></TableShell> : <EmptyState icon={Send} title="No hay solicitudes de transporte" text="Selecciona un barco próximo o crea una solicitud y añade los pedidos que quieres cargar." action="Nueva solicitud" onAction={() => onCreate("requests")} />}</section>;
+    return <section className={styles.panel}><QuickFilterBanner quickFilter={quickFilter} count={rows.length} onClear={onClearQuickFilter} /><ModuleStats items={[[overview.requests.rows.filter((row) => ["draft", "requested", "quoted", "approved"].includes(row.status)).length, "Pendientes"], [overview.requests.rows.filter((row) => row.status === "booked").length, "Confirmadas"], [overview.requests.rows.filter((row) => row.status === "cancelled").length, "Canceladas"]]} /><ListTools query={query} setQuery={setQuery} placeholder="Solicitud, barco, transitario, booking o ruta…">{modeFilter}{statusFilter}</ListTools>{rows.length ? <TableShell><thead><tr><th>Solicitud</th><th>Barco / ruta</th><th>Transitario</th><th>Pedidos</th><th>Estado</th><th>Booking</th><th>Acciones</th></tr></thead><tbody>{rows.map((row) => { const vessel = vessels.get(row.vessel_id); const orderCount = overview.requestOrders.rows.filter((link) => link.transport_request_id === row.id).length; return <tr key={row.id}><td><b>{row.request_number}</b><small>{MODE_LABELS[row.mode]}</small></td><td>{vessel?.vessel_name || "Sin barco asignado"}<small>{row.origin || vessel?.origin_port || "—"} → {row.destination || vessel?.destination_port || "—"}</small></td><td>{forwarders.get(row.forwarder_id)?.name || "Sin asignar"}</td><td>{orderCount}</td><td><StatusBadge value={row.status} /></td><td>{row.booking_reference || "Pendiente"}</td><td><ActionButtons onEdit={() => onEdit("requests", row)} onRetire={() => onRetire("requests", row)} /></td></tr>; })}</tbody></TableShell> : <EmptyState icon={Send} title="No hay solicitudes en este filtro" text="Limpia el filtro para ver todas las solicitudes de transporte." action={quickFilter ? "Ver todos" : "Nueva solicitud"} onAction={quickFilter ? onClearQuickFilter : () => onCreate("requests")} />}</section>;
   }
 
   if (view === "vessels") {
