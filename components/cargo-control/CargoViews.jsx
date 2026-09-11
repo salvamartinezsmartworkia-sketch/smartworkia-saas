@@ -201,6 +201,10 @@ function ArrivalAgenda({ overview, shipments, onOpen, onNavigate }) {
 
 export function DashboardView({ overview, quickFilter, onNavigate, onOpenShipment, onEditRecord }) {
   const intelligence = useMemo(() => buildIntelligence(overview), [overview]);
+  const activeShipments = intelligence.active.length;
+  const onTimeShipments = intelligence.active.filter((row) => Number(row.delay_days || 0) <= 0).length;
+  const onTimeRate = activeShipments ? Math.round((onTimeShipments / activeShipments) * 100) : 100;
+  const nextCritical = intelligence.attention[0];
   const metrics = [
     { value: intelligence.upcomingArrivals.length, label: "Llegadas 14 días", Icon: CalendarClock, target: "shipments", text: "Qué entra en el horizonte operativo", filter: { key: "arrivals-14d", label: "Llegadas previstas durante los próximos 14 días", ids: intelligence.upcomingArrivals.map((row) => row.id) } },
     { value: intelligence.attention.length, label: "Prioridades abiertas", Icon: AlertTriangle, target: "dashboard", text: "Acciones que requieren decisión", filter: { key: "priorities", label: "Prioridades operativas abiertas", ids: intelligence.attention.map((item) => item.row.id) } },
@@ -214,15 +218,24 @@ export function DashboardView({ overview, quickFilter, onNavigate, onOpenShipmen
   const openPriority = (item) => item.type === "delay" || item.type === "eta" ? onOpenShipment(item.row) : onEditRecord(item.type === "risk" ? "orders" : item.type === "booking" ? "requests" : "vessels", item.row);
   return <>
     <section className={styles.metrics}>{metrics.map(({ value, label, Icon, target, text, filter }) => <button className={value && ["Prioridades abiertas", "Bookings pendientes", "Envíos retrasados", "Pedidos en riesgo"].includes(label) ? styles.metricAlert : ""} key={label} onClick={() => onNavigate(target, false, filter)}><div><span>{label}</span><Icon /></div><strong>{String(value).padStart(2, "0")}</strong><p>{value ? text : "Sin incidencias abiertas"}</p></button>)}</section>
+    {quickFilter?.key === "priorities" && <section className={`${styles.panel} ${styles.priorityDrilldown}`}>
+      <div className={styles.sectionTitle}><div><span>PRIORIDADES OPERATIVAS</span><h2>Qué resolver ahora</h2><small className={styles.sectionSubtitle}>Vista abierta desde la tarjeta superior. No se muestra por defecto para no duplicar el panel.</small></div><b>{attentionItems.length}</b></div>
+      <QuickFilterBanner quickFilter={quickFilter} count={attentionItems.length} onClear={() => onNavigate("dashboard")} />
+      {attentionItems.length ? <div className={styles.attentionList}>{attentionItems.map((item, index) => <button key={`${item.type}-${item.row.id}-${index}`} onClick={() => openPriority(item)}><span className={styles[`attention_${item.type}`]}><AlertTriangle /></span><div><b>{item.title}</b><small>{item.text}</small><em>{item.action}</em></div><ArrowRight /></button>)}</div> : <div className={styles.allClear}><CheckCircle2 /><h3>Todo bajo control</h3><p>No hay acciones críticas pendientes en pedidos, bookings o llegadas.</p></div>}
+    </section>}
     <section className={styles.controlGrid}>
       <article className={styles.panel}>
         <div className={styles.sectionTitle}><div><span>AGENDA LOGÍSTICA INTELIGENTE</span><h2>Próximas llegadas</h2><small className={styles.sectionSubtitle}>Qué llega, dónde y qué requiere atención durante los próximos 14 días.</small></div><CalendarClock /></div>
         <ArrivalAgenda overview={overview} shipments={intelligence.active} onOpen={onOpenShipment} onNavigate={onNavigate} />
       </article>
-      <article className={`${styles.panel} ${styles.attentionPanel}`}>
-        <div className={styles.sectionTitle}><div><span>PRIORIDADES OPERATIVAS</span><h2>Qué resolver ahora</h2><small className={styles.sectionSubtitle}>Acciones concretas ordenadas por impacto operativo.</small></div><b>{attentionItems.length}</b></div>
-        {quickFilter?.key === "priorities" && <QuickFilterBanner quickFilter={quickFilter} count={attentionItems.length} onClear={() => onNavigate("dashboard")} />}
-        {attentionItems.length ? <div className={styles.attentionList}>{attentionItems.map((item, index) => <button key={`${item.type}-${item.row.id}-${index}`} onClick={() => openPriority(item)}><span className={styles[`attention_${item.type}`]}><AlertTriangle /></span><div><b>{item.title}</b><small>{item.text}</small><em>{item.action}</em></div><ArrowRight /></button>)}</div> : <div className={styles.allClear}><CheckCircle2 /><h3>Todo bajo control</h3><p>No hay acciones críticas pendientes en pedidos, bookings o llegadas.</p></div>}
+      <article className={`${styles.panel} ${styles.pulsePanel}`}>
+        <div className={styles.sectionTitle}><div><span>PULSO OPERATIVO</span><h2>Situación general</h2><small className={styles.sectionSubtitle}>Lectura rápida sin repetir la lista de prioridades.</small></div><CheckCircle2 /></div>
+        <div className={styles.pulseList}>
+          <button onClick={() => onNavigate("shipments", false, { key: "on-time-shipments", label: "Envíos activos sin retraso", ids: intelligence.active.filter((row) => Number(row.delay_days || 0) <= 0).map((row) => row.id) })}><span><Truck /></span><div><b>{onTimeRate}% on time</b><small>{onTimeShipments} de {activeShipments} envíos activos sin retraso.</small></div><ArrowRight /></button>
+          <button onClick={() => onNavigate("requests", false, { key: "booking-pending", label: "Solicitudes pendientes de booking", ids: intelligence.bookingPending.map((row) => row.id) })}><span><Send /></span><div><b>{intelligence.bookingPending.length} bookings pendientes</b><small>Solicitudes aprobadas o pedidas sin referencia confirmada.</small></div><ArrowRight /></button>
+          <button onClick={() => onNavigate("orders", false, { key: "risk-orders", label: "Pedidos con riesgo de disponibilidad", ids: intelligence.riskOrders.map((row) => row.id) })}><span><Package /></span><div><b>{intelligence.riskOrders.length} pedidos en riesgo</b><small>Disponibilidad posterior a la fecha de necesidad.</small></div><ArrowRight /></button>
+        </div>
+        {nextCritical ? <div className={styles.nextCritical}><span>Próxima acción crítica</span><b>{nextCritical.title}</b><small>{nextCritical.text}</small><button className={styles.textButton} onClick={() => openPriority(nextCritical)}>Abrir registro <ArrowRight /></button></div> : <div className={styles.allClear}><CheckCircle2 /><h3>Sin frentes abiertos</h3><p>El flujo operativo no muestra urgencias ahora mismo.</p></div>}
       </article>
     </section>
   </>;
