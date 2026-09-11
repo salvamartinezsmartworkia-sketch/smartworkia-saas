@@ -217,10 +217,13 @@ export function DashboardView({ overview, quickFilter, onNavigate, onOpenShipmen
     : intelligence.attention;
   const openPriority = (item) => item.type === "delay" || item.type === "eta" ? onOpenShipment(item.row) : onEditRecord(item.type === "risk" ? "orders" : item.type === "booking" ? "requests" : "vessels", item.row);
   return <>
-    <section className={styles.metrics}>{metrics.map(({ value, label, Icon, target, text, filter }) => <button className={value && ["Prioridades abiertas", "Bookings pendientes", "Envíos retrasados", "Pedidos en riesgo"].includes(label) ? styles.metricAlert : ""} key={label} onClick={() => onNavigate(target, false, filter)}><div><span>{label}</span><Icon /></div><strong>{String(value).padStart(2, "0")}</strong><p>{value ? text : "Sin incidencias abiertas"}</p></button>)}</section>
+    <section className={styles.metrics}>{metrics.map(({ value, label, Icon, target, text, filter }) => {
+      const isPriority = filter.key === "priorities";
+      const className = isPriority ? `${styles.metricPriority} ${quickFilter?.key === "priorities" ? styles.metricPriorityOpen : ""}` : value && ["Bookings pendientes", "Envíos retrasados", "Pedidos en riesgo"].includes(label) ? styles.metricAlert : "";
+      return <button className={className} key={label} onClick={() => onNavigate(target, false, filter)}><div><span>{label}</span><Icon /></div><strong>{String(value).padStart(2, "0")}</strong><p>{isPriority && quickFilter?.key === "priorities" ? "Prioridades desplegadas abajo" : value ? text : "Sin incidencias abiertas"}</p></button>;
+    })}</section>
     {quickFilter?.key === "priorities" && <section className={`${styles.panel} ${styles.priorityDrilldown}`}>
-      <div className={styles.sectionTitle}><div><span>PRIORIDADES OPERATIVAS</span><h2>Qué resolver ahora</h2><small className={styles.sectionSubtitle}>Vista abierta desde la tarjeta superior. No se muestra por defecto para no duplicar el panel.</small></div><b>{attentionItems.length}</b></div>
-      <QuickFilterBanner quickFilter={quickFilter} count={attentionItems.length} onClear={() => onNavigate("dashboard")} />
+      <div className={styles.sectionTitle}><div><span>PRIORIDADES OPERATIVAS</span><h2>{attentionItems.length} acciones abiertas para resolver ahora</h2><small className={styles.sectionSubtitle}>Bloque desplegado desde la tarjeta superior, sin ocupar espacio cuando no lo necesitas.</small></div><div className={styles.priorityHeaderActions}><b>{String(attentionItems.length).padStart(2, "0")}</b><button className={styles.textButton} onClick={() => onNavigate("dashboard")}>Cerrar</button></div></div>
       {attentionItems.length ? <div className={styles.attentionList}>{attentionItems.map((item, index) => <button key={`${item.type}-${item.row.id}-${index}`} onClick={() => openPriority(item)}><span className={styles[`attention_${item.type}`]}><AlertTriangle /></span><div><b>{item.title}</b><small>{item.text}</small><em>{item.action}</em></div><ArrowRight /></button>)}</div> : <div className={styles.allClear}><CheckCircle2 /><h3>Todo bajo control</h3><p>No hay acciones críticas pendientes en pedidos, bookings o llegadas.</p></div>}
     </section>}
     <section className={styles.controlGrid}>
