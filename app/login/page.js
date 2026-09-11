@@ -57,6 +57,19 @@ export default function LoginPage() {
       setMessage(getReadableAuthError(error));
     } else {
       const access = await resolveClientUserAccess(data.user);
+      const sessionResponse = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`,
+        },
+      });
+
+      if (!sessionResponse.ok) {
+        setMessage("La sesión se inició, pero no se pudo habilitar el acceso. Inténtalo de nuevo.");
+        setLoading(false);
+        return;
+      }
+
       enableSupabaseAccessCookie();
       enablePlanAccessCookie(access.plan);
 

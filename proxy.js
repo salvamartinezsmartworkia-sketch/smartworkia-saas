@@ -19,6 +19,7 @@ export function proxy(request) {
   const isTeachingAreaRoute = pathname.startsWith("/area-docente");
   const isVirtualClassroomRoute = pathname.startsWith("/aula-virtual-demo");
   const isCampusRoute = pathname.startsWith("/campus");
+  const isCargoControlRoute = pathname.startsWith("/cargo-control");
   const isBypassedAdminRoute =
     isTeachingAreaRoute || isVirtualClassroomRoute || isCampusRoute;
 
@@ -27,6 +28,7 @@ export function proxy(request) {
     pathname.startsWith("/tools") ||
     pathname.startsWith("/crm") ||
     pathname.startsWith("/admin") ||
+    isCargoControlRoute ||
     isBypassedAdminRoute;
   const isAdminRoute =
     pathname.startsWith("/admin") ||
@@ -99,5 +101,6 @@ export const config = {
     "/area-docente/:path*",
     "/aula-virtual-demo/:path*",
     "/campus/:path*",
+    "/cargo-control/:path*",
   ],
 };
