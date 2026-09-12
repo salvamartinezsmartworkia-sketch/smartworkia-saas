@@ -153,6 +153,55 @@ function ShipmentModal({ shipment, overview, onClose, onEdit, onUploadDocument, 
   </div>;
 }
 
+function DetailDrawer({ detail, overview, onClose, onEdit, onOpenCommand, onOpenDocument, onDeleteDocument }) {
+  const { kind, row } = detail;
+  const entityType = ENTITY_TYPE[kind];
+  const documents = entityType ? overview.documents.rows.filter((item) => item.entity_type === entityType && item.entity_id === row.id) : [];
+  const supplier = kind === "orders" ? overview.suppliers.rows.find((item) => item.id === row.supplier_id) : null;
+  const forwarder = ["requests", "shipments", "quotes"].includes(kind) ? overview.forwarders.rows.find((item) => item.id === row.forwarder_id) : null;
+  const vessel = ["requests", "shipments"].includes(kind) ? overview.vessels.rows.find((item) => item.id === row.vessel_id) : null;
+  const orderLines = kind === "orders" ? overview.orderLines.rows.filter((item) => item.purchase_order_id === row.id) : [];
+  const requestOrders = kind === "requests" ? overview.requestOrders.rows.filter((item) => item.transport_request_id === row.id) : [];
+  const shipmentLineIds = kind === "shipments" ? new Set(overview.shipmentLines.rows.filter((item) => item.shipment_id === row.id).map((item) => item.purchase_order_line_id)) : new Set();
+  const shipmentOrders = kind === "shipments" ? [...new Set(overview.orderLines.rows.filter((line) => shipmentLineIds.has(line.id)).map((line) => line.purchase_order_id))] : [];
+  const linkedOrders = kind === "requests"
+    ? overview.orders.rows.filter((order) => requestOrders.some((link) => link.purchase_order_id === order.id))
+    : kind === "shipments" ? overview.orders.rows.filter((order) => shipmentOrders.includes(order.id)) : [];
+  const title = titleOf(row);
+  const subtitle = kind === "orders" ? supplier?.name || "Proveedor pendiente"
+    : kind === "requests" ? `${forwarder?.name || "Transitario pendiente"} · ${LABELS[row.mode] || row.mode || "Modo pendiente"}`
+      : `${forwarder?.name || "Transitario pendiente"} · ${row.origin || "Origen"} → ${row.destination || "Destino"}`;
+  const steps = kind === "orders"
+    ? [["Pedido", Boolean(row.order_date || row.id)], ["Proveedor", Boolean(row.supplier_id)], ["Materiales", orderLines.length > 0], ["Listo", ["ready", "requested", "booked", "in_transit", "delivered"].includes(row.status)], ["Cerrado", ["delivered", "archived"].includes(row.status)]]
+    : kind === "requests"
+      ? [["Solicitud", Boolean(row.id)], ["Pedidos", linkedOrders.length > 0], ["Transitario", Boolean(row.forwarder_id)], ["Booking", Boolean(row.booking_reference || row.status === "booked")], ["Envío", row.status === "booked"]]
+      : [["Planificado", Boolean(row.id)], ["Booking", Boolean(row.tracking_reference || row.transport_name || row.vessel_id)], ["Salida", Boolean(row.departure_at || ["picked_up", "in_transit", "customs", "delivered"].includes(row.status))], ["ETA", Boolean(row.estimated_arrival_at)], ["Entrega", row.status === "delivered"]];
+  const facts = kind === "orders"
+    ? [["Estado", STATUS_LABELS[row.status] || row.status], ["Origen", row.origin || supplier?.city], ["Disponible", fmtDate(row.ready_date)], ["Importe", row.total_amount ? `${row.total_amount} ${row.currency || "EUR"}` : "Sin importe"]]
+    : kind === "requests"
+      ? [["Estado", STATUS_LABELS[row.status] || row.status], ["Ruta", `${row.origin || vessel?.origin_port || "Origen"} → ${row.destination || vessel?.destination_port || "Destino"}`], ["Booking", row.booking_reference || "Pendiente"], ["Pedidos", linkedOrders.length]]
+      : [["Estado", STATUS_LABELS[row.status] || row.status], ["Tracking", row.tracking_reference || "Pendiente"], ["ETA", fmtDate(row.estimated_arrival_at)], ["Disponible", row.estimated_arrival_at ? fmtDate(new Date(new Date(row.estimated_arrival_at).getTime() + (Number(row.destination_days) || 0) * 86400000)) : "Sin previsión"]];
+  return <div className={styles.drawerOverlay} onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <aside className={styles.detailDrawer} role="dialog" aria-modal="true">
+      <header className={styles.drawerHeader}>
+        <div><span>{kind === "orders" ? "PEDIDO DE COMPRA" : kind === "requests" ? "SOLICITUD DE TRANSPORTE" : "ENVÍO OPERATIVO"}</span><h2>{title}</h2><p>{subtitle}</p></div>
+        <button className={styles.iconButton} onClick={onClose} aria-label="Cerrar"><X /></button>
+      </header>
+      <div className={styles.drawerBody}>
+        <section className={styles.flowCard}>
+          <div className={styles.sectionTitle}><div><span>FLUJO OPERATIVO</span><h3>Progreso de la operación</h3></div><Activity /></div>
+          <div className={styles.flowSteps}>{steps.map(([label, done], index) => <div key={label} className={done ? styles.flowDone : ""}><i>{done ? <CheckCircle2 /> : index + 1}</i><span>{label}</span></div>)}</div>
+        </section>
+        <section className={styles.drawerFacts}>{facts.map(([label, value]) => <div key={label}><small>{label}</small><b>{value || "Sin informar"}</b></div>)}</section>
+        {kind === "orders" && <section className={styles.drawerSection}><div className={styles.sectionTitle}><div><span>MATERIALES</span><h3>{orderLines.length} líneas de pedido</h3></div><Package /></div>{orderLines.length ? orderLines.slice(0, 6).map((line) => <article className={styles.drawerLine} key={line.id || line.line_number}><div><b>{line.sku || `Línea ${line.line_number}`}</b><span>{line.description}</span></div><strong>{line.quantity} {line.unit}</strong></article>) : <p className={styles.empty}>Todavía no hay materiales en este pedido.</p>}</section>}
+        {["requests", "shipments"].includes(kind) && <section className={styles.drawerSection}><div className={styles.sectionTitle}><div><span>CARGA VINCULADA</span><h3>{linkedOrders.length} pedidos asociados</h3></div><Package /></div>{linkedOrders.length ? linkedOrders.map((order) => <article className={styles.drawerLine} key={order.id}><div><b>{order.order_number}</b><span>{order.origin || "Origen pendiente"} · {fmtDate(order.ready_date)}</span></div><strong>{STATUS_LABELS[order.status] || order.status}</strong></article>) : <p className={styles.empty}>No hay pedidos vinculados todavía.</p>}</section>}
+        <section className={styles.drawerSection}><div className={styles.sectionTitle}><div><span>EXPEDIENTE DOCUMENTAL</span><h3>{documents.length} documentos vinculados</h3></div><FileText /></div><div className={styles.contextDocuments}>{documents.map((document) => <div key={document.id}><button type="button" onClick={() => onOpenDocument(document)}><FileText /><span><b>{document.file_name}</b><small>{fmtDate(document.created_at)}</small></span></button><button type="button" className={styles.dangerIcon} onClick={() => onDeleteDocument(document)} aria-label={`Eliminar ${document.file_name}`}><Trash2 /></button></div>)}{!documents.length && <p className={styles.empty}>Sin documentos vinculados todavía.</p>}</div></section>
+      </div>
+      <footer className={styles.drawerActions}><button className={styles.secondary} onClick={onClose}>Cerrar</button>{kind === "shipments" && <button className={styles.secondary} onClick={() => onOpenCommand(row)}><Navigation />Centro de mando</button>}<button className={styles.primary} onClick={() => onEdit(kind, row)}><Pencil />Editar</button></footer>
+    </aside>
+  </div>;
+}
+
 export default function CargoControlShell() {
   const [workspace, setWorkspace] = useState(null);
   const [overview, setOverview] = useState(null);
@@ -162,6 +211,7 @@ export default function CargoControlShell() {
   const [quickFilter, setQuickFilter] = useState(null);
   const [editor, setEditor] = useState(null);
   const [selectedShipment, setSelectedShipment] = useState(null);
+  const [detail, setDetail] = useState(null);
   const [file, setFile] = useState(null);
   const [documentTarget, setDocumentTarget] = useState("");
 
@@ -309,14 +359,15 @@ export default function CargoControlShell() {
           {view === "partners" && <><button className={styles.secondary} onClick={() => createRecord("forwarders")}><Plus />Transitario</button><button className={styles.primary} onClick={() => createRecord("suppliers")}><Plus />Proveedor</button></>}
         </div></section>
         {state.error && <div className={styles.error}>{state.error}</div>}
-        {view === "dashboard" && <DashboardView overview={overview} quickFilter={quickFilter} onNavigate={navigate} onOpenShipment={setSelectedShipment} onEditRecord={(kind, row) => setEditor({ kind, row })} />}
-        {["orders", "requests", "vessels", "shipments", "forecasts", "partners", "quotes", "documents"].includes(view) && <OperationalModule key={`${view}-${quickFilter?.key || "all"}`} view={view} overview={overview} query={query} setQuery={setQuery} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} onCreate={createRecord} onEdit={(kind, row) => setEditor({ kind, row })} onOpenShipment={setSelectedShipment} onRetire={retireRecord} onNavigate={navigate} onOpenDocument={(row) => getCargoDocumentUrl(row.storage_path).then((url) => window.open(url, "_blank", "noopener,noreferrer"))} onDeleteDocument={(row) => removeRecord("documents", row)} />}
+        {view === "dashboard" && <DashboardView overview={overview} quickFilter={quickFilter} onNavigate={navigate} onOpenShipment={(row) => setDetail({ kind: "shipments", row })} onEditRecord={(kind, row) => setEditor({ kind, row })} />}
+        {["orders", "requests", "vessels", "shipments", "forecasts", "partners", "quotes", "documents"].includes(view) && <OperationalModule key={`${view}-${quickFilter?.key || "all"}`} view={view} overview={overview} query={query} setQuery={setQuery} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} onCreate={createRecord} onEdit={(kind, row) => setEditor({ kind, row })} onOpenRecord={(kind, row) => setDetail({ kind, row })} onOpenShipment={(row) => setDetail({ kind: "shipments", row })} onRetire={retireRecord} onNavigate={navigate} onOpenDocument={(row) => getCargoDocumentUrl(row.storage_path).then((url) => window.open(url, "_blank", "noopener,noreferrer"))} onDeleteDocument={(row) => removeRecord("documents", row)} />}
         {view === "documents" && <form className={styles.uploadBar} onSubmit={uploadDocument}><Upload /><div><b>Adjuntar documento privado</b><span>Elige exactamente el pedido, solicitud, envío, cotización, barco o empresa.</span></div><select required value={documentTarget} onChange={(e) => setDocumentTarget(e.target.value)}><option value="">Vincular documento a…</option>{documentTargets.map((target) => <option key={`${target.type}:${target.id}`} value={`${target.type}:${target.id}`}>{target.label}</option>)}</select><input type="file" accept=".pdf,.xlsx,.csv,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] || null)} /><button className={styles.primary} disabled={!file || !documentTarget || state.busy}>Subir</button></form>}
         {view === "import" && <CargoImportPanel workspace={workspace} busy={state.busy} setBusy={(busy) => setState((current) => ({ ...current, busy }))} onComplete={refresh} />}
         {view === "connections" && <><div className={styles.connectionNotice}><Link2 /><div><b>Un punto de entrada para cada fuente</b><span>Los enlaces abren el portal oficial. Cargo Control no transmite pedidos ni contenido de la carga.</span></div></div><section className={styles.connectionGrid}>{[["MarineTraffic", Ship, "Consulta externa disponible", "Seguimiento oficial por IMO o nombre del buque.", "https://www.marinetraffic.com/"], ["Flightradar24", Plane, "Consulta externa disponible", "Consulta del vuelo en una pestaña externa.", "https://www.flightradar24.com/"], ["Navieras y transitarios", Container, "Pendiente de integración", "Eventos de salida, transbordo y llegada con acceso autorizado.", "https://developer.maersk.com/catalogue"], ["Transporte por carretera", Truck, "Listo para enlaces GPS", "Enlace manual al sistema del operador desde cada envío.", ""]].map(([name, Icon, status, text, url]) => <article className={styles.panel} key={name}><div className={styles.connectionStatus}><Icon /><span>{status}</span></div><h2>{name}</h2><p>{text}</p>{url && <a href={url} target="_blank" rel="noreferrer">Abrir servicio <ExternalLink /></a>}</article>)}</section></>}
       </div>
     </main>
     {editor && <FormModal key={`${editor.kind}-${editor.row.id || "new"}`} kind={editor.kind} initial={editor.row} busy={state.busy} overview={overview} onClose={() => setEditor(null)} onSave={saveRecord} onUploadDocument={uploadTargetDocument} onOpenDocument={(row) => getCargoDocumentUrl(row.storage_path).then((url) => window.open(url, "_blank", "noopener,noreferrer"))} onDeleteDocument={(row) => removeRecord("documents", row)} />}
+    {detail && <DetailDrawer detail={detail} overview={overview} onClose={() => setDetail(null)} onEdit={(kind, row) => { setEditor({ kind, row }); setDetail(null); }} onOpenCommand={(row) => { setSelectedShipment(row); setDetail(null); }} onOpenDocument={(row) => getCargoDocumentUrl(row.storage_path).then((url) => window.open(url, "_blank", "noopener,noreferrer"))} onDeleteDocument={(row) => removeRecord("documents", row)} />}
     {selectedShipment && <ShipmentModal shipment={selectedShipment} overview={overview} onClose={() => setSelectedShipment(null)} onEdit={() => { setEditor({ kind: "shipments", row: selectedShipment }); setSelectedShipment(null); }} onUploadDocument={uploadTargetDocument} onOpenDocument={(row) => getCargoDocumentUrl(row.storage_path).then((url) => window.open(url, "_blank", "noopener,noreferrer"))} onDeleteDocument={(row) => removeRecord("documents", row)} />}
   </div>;
 }
