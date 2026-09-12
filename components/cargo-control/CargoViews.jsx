@@ -151,6 +151,10 @@ function byQuickFilter(rows, quickFilter) {
   return rows.filter((row) => ids.has(row.id));
 }
 
+function withDocs(overview, entityType) {
+  return new Set(overview.documents.rows.filter((document) => document.entity_type === entityType).map((document) => document.entity_id));
+}
+
 function QuickFilterBanner({ quickFilter, count, onClear }) {
   if (!quickFilter) return null;
   return <div className={styles.quickFilterBanner}>
@@ -283,12 +287,13 @@ export function OperationalModule({ view, overview, query, setQuery, quickFilter
   if (view === "shipments") {
     const intelligence = buildIntelligence(overview);
     const activeRows = overview.shipments.rows.filter((row) => ACTIVE_SHIPMENT.has(row.status));
-    const onTimeRows = activeRows.filter((row) => dayDiff(row.initial_arrival_at, row.estimated_arrival_at) <= 0);
+    const shipmentDocs = withDocs(overview, "shipment");
+    const withoutDocs = activeRows.filter((row) => !shipmentDocs.has(row.id));
     const shipmentStats = [
       [activeRows.length, "Envíos activos", { key: "active-shipments", label: "Envíos activos", ids: activeRows.map((row) => row.id) }],
       [intelligence.upcomingArrivals.length, "Llegadas 14 días", { key: "arrivals-14d", label: "Llegadas previstas durante los próximos 14 días", ids: intelligence.upcomingArrivals.map((row) => row.id) }],
       [intelligence.delayed.length, "Retrasados", { key: "delayed-shipments", label: "Envíos con retraso frente a la ETA inicial", ids: intelligence.delayed.map((row) => row.id) }],
-      [onTimeRows.length, "En hora", { key: "on-time-shipments", label: "Envíos activos sin retraso", ids: onTimeRows.map((row) => row.id) }],
+      [withoutDocs.length, "Sin documentos", { key: "shipments-without-docs", label: "Envíos activos pendientes de documentación", ids: withoutDocs.map((row) => row.id) }],
     ];
     const rows = byQuickFilter(filterModeStatus(overview.shipments.rows), quickFilter);
     return <section className={styles.panel}><QuickFilterBanner quickFilter={quickFilter} count={rows.length} onClear={onClearQuickFilter} /><ModuleStats items={shipmentStats} activeKey={quickFilter?.key} onSelect={(filter) => onNavigate("shipments", false, filter)} /><ListTools query={query} setQuery={setQuery} placeholder="Envío, booking, contenedor, AWB, vuelo o ruta…">{modeFilter}{statusFilter}</ListTools><ShipmentsTable rows={rows} overview={overview} onOpen={onOpenShipment} onEdit={(row) => onEdit("shipments", row)} onRetire={(row) => onRetire("shipments", row)} /></section>;
@@ -305,11 +310,13 @@ export function OperationalModule({ view, overview, query, setQuery, quickFilter
     const activeOrders = overview.orders.rows.filter((row) => !["delivered", "cancelled", "archived"].includes(row.status));
     const ordersWithSupplier = overview.orders.rows.filter((row) => row.supplier_id);
     const ordersWithLines = overview.orders.rows.filter((row) => (orderLinesByOrder.get(row.id) || []).length);
+    const orderDocs = withDocs(overview, "purchase_order");
+    const ordersWithoutDocs = activeOrders.filter((row) => !orderDocs.has(row.id));
     const orderStats = [
       [activeOrders.length, "Pedidos activos", { key: "active-orders", label: "Pedidos activos", ids: activeOrders.map((row) => row.id) }],
       [new Set(ordersWithSupplier.map((row) => row.supplier_id)).size, "Proveedores", { key: "orders-with-supplier", label: "Pedidos con proveedor asignado", ids: ordersWithSupplier.map((row) => row.id) }],
       [overview.orderLines.rows.length, "Líneas de material", { key: "orders-with-lines", label: "Pedidos con líneas de material", ids: ordersWithLines.map((row) => row.id) }],
-      [intelligence.riskOrders.length, "Pedidos en riesgo", { key: "risk-orders", label: "Pedidos con riesgo de disponibilidad", ids: intelligence.riskOrders.map((row) => row.id) }],
+      [ordersWithoutDocs.length, "Sin documentos", { key: "orders-without-docs", label: "Pedidos activos pendientes de documentación", ids: ordersWithoutDocs.map((row) => row.id) }],
     ];
     const rows = byQuickFilter(filterModeStatus(overview.orders.rows), quickFilter);
     const suppliers = new Map(overview.suppliers.rows.map((row) => [row.id, row]));
@@ -319,13 +326,14 @@ export function OperationalModule({ view, overview, query, setQuery, quickFilter
   if (view === "requests") {
     const pendingRequests = overview.requests.rows.filter((row) => ["draft", "requested", "quoted", "approved"].includes(row.status));
     const bookedRequests = overview.requests.rows.filter((row) => row.status === "booked");
-    const cancelledRequests = overview.requests.rows.filter((row) => row.status === "cancelled");
     const withoutBooking = overview.requests.rows.filter((row) => ["requested", "quoted", "approved"].includes(row.status) && !row.booking_reference);
+    const requestDocs = withDocs(overview, "transport_request");
+    const withoutDocs = pendingRequests.filter((row) => !requestDocs.has(row.id));
     const requestStats = [
       [pendingRequests.length, "Pendientes", { key: "pending-requests", label: "Solicitudes pendientes", ids: pendingRequests.map((row) => row.id) }],
       [bookedRequests.length, "Confirmadas", { key: "booked-requests", label: "Solicitudes con booking confirmado", ids: bookedRequests.map((row) => row.id) }],
       [withoutBooking.length, "Sin booking", { key: "booking-pending", label: "Solicitudes pendientes de booking", ids: withoutBooking.map((row) => row.id) }],
-      [cancelledRequests.length, "Canceladas", { key: "cancelled-requests", label: "Solicitudes canceladas", ids: cancelledRequests.map((row) => row.id) }],
+      [withoutDocs.length, "Sin documentos", { key: "requests-without-docs", label: "Solicitudes pendientes de documentación", ids: withoutDocs.map((row) => row.id) }],
     ];
     const rows = byQuickFilter(filterModeStatus(overview.requests.rows), quickFilter);
     const vessels = new Map(overview.vessels.rows.map((row) => [row.id, row])); const forwarders = new Map(overview.forwarders.rows.map((row) => [row.id, row]));
