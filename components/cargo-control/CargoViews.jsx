@@ -26,6 +26,7 @@ const dayMs = 86400000;
 const dayDiff = (from, to) => from && to ? Math.round((new Date(to).getTime() - new Date(from).getTime()) / dayMs) : 0;
 const addDays = (value, days) => value ? new Date(new Date(value).getTime() + (Number(days) || 0) * dayMs) : null;
 const entityLabel = { purchase_order: "Pedido", transport_request: "Solicitud", shipment: "Envío", quote: "Cotización", upcoming_vessel: "Barco", supplier: "Proveedor", forwarder: "Transitario" };
+const DOCUMENT_TYPE_LABELS = { commercial_invoice: "Factura comercial", packing_list: "Packing list", transport_document: "BL / AWB / CMR", customs_clearance: "DUA / despacho", certificate: "Certificado", quote: "Cotización", purchase_order: "Orden de compra", proof: "Foto / evidencia", other: "Otro" };
 
 function ModeIcon({ mode }) {
   return mode === "air" ? <Plane /> : mode === "road" ? <Truck /> : <Ship />;
@@ -372,7 +373,7 @@ export function OperationalModule({ view, overview, query, setQuery, quickFilter
 
   if (view === "documents") {
     const rows = overview.documents.rows.filter(matches);
-    return <section className={styles.panel}><ListTools query={query} setQuery={setQuery} placeholder="Documento, tipo o fecha…" />{rows.length ? <TableShell><thead><tr><th>Documento</th><th>Vinculado a</th><th>Formato</th><th>Tamaño</th><th>Subido</th><th>Acciones</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><button className={styles.recordLink} onClick={() => onOpenDocument(row)}><b>{row.file_name}</b></button></td><td>{entityLabel[row.entity_type] || row.entity_type}<small>{row.entity_id}</small></td><td>{row.mime_type || "Archivo"}</td><td>{row.size_bytes ? `${(row.size_bytes / 1024).toFixed(0)} KB` : "—"}</td><td>{fmtDate(row.created_at)}</td><td><ActionButtons onOpen={() => onOpenDocument(row)} onRetire={() => onDeleteDocument(row)} retireLabel="Eliminar" /></td></tr>)}</tbody></TableShell> : <EmptyState icon={FileText} title="Archivo documental vacío" text="Adjunta PDFs, Excels e imágenes desde un pedido, solicitud, envío, cotización o desde esta sección." />}</section>;
+    return <section className={styles.panel}><ListTools query={query} setQuery={setQuery} placeholder="Documento, tipo o fecha…" />{rows.length ? <TableShell><thead><tr><th>Documento</th><th>Tipo documental</th><th>Vinculado a</th><th>Formato</th><th>Tamaño</th><th>Subido</th><th>Acciones</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><button className={styles.recordLink} onClick={() => onOpenDocument(row)}><b>{row.file_name}</b></button></td><td>{DOCUMENT_TYPE_LABELS[row.document_type] || "Sin clasificar"}</td><td>{entityLabel[row.entity_type] || row.entity_type}<small>{row.entity_id}</small></td><td>{row.mime_type || "Archivo"}</td><td>{row.size_bytes ? `${(row.size_bytes / 1024).toFixed(0)} KB` : "—"}</td><td>{fmtDate(row.created_at)}</td><td><ActionButtons onOpen={() => onOpenDocument(row)} onRetire={() => onDeleteDocument(row)} retireLabel="Eliminar" /></td></tr>)}</tbody></TableShell> : <EmptyState icon={FileText} title="Archivo documental vacío" text="Adjunta PDFs, Excels e imágenes desde un pedido, solicitud, envío, cotización o desde esta sección." />}</section>;
   }
   return null;
 }
