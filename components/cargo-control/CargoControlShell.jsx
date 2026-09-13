@@ -211,8 +211,8 @@ function DetailDrawer({ detail, overview, onClose, onEdit, onCreateRequest, onMa
       </header>
       <div className={styles.drawerBody}>
         <section className={styles.flowCard}>
-          <div className={styles.sectionTitle}><div><span>FLUJO OPERATIVO</span><h3>Progreso de la operación</h3></div><Activity /></div>
-          <div className={styles.flowSteps}>{steps.map(([label, done], index) => <div key={label} className={done ? styles.flowDone : ""}><div><i>{done ? <CheckCircle2 /> : index + 1}</i>{index < steps.length - 1 && <em aria-hidden="true">→</em>}</div><span>{label}</span></div>)}</div>
+          <div className={styles.sectionTitle}><div><span>FLUJO OPERATIVO</span><h3>Ruta paso a paso</h3></div><Activity /></div>
+          <div className={styles.flowSteps}>{steps.map(([label, done], index) => <div key={label} className={`${styles.flowStep} ${done ? styles.flowDone : ""}`}><div className={styles.flowTrack}><i>{done ? <CheckCircle2 /> : index + 1}</i>{index < steps.length - 1 && <em aria-hidden="true"><b /></em>}</div><span>{label}</span></div>)}</div>
         </section>
         <section className={styles.drawerFacts}>{facts.map(([label, value]) => <div key={label}><small>{label}</small><b>{value || "Sin informar"}</b></div>)}</section>
         {kind === "orders" && <section className={styles.drawerSection}><div className={styles.sectionTitle}><div><span>MATERIALES</span><h3>{orderLines.length} líneas de pedido</h3></div><Package /></div>{orderLines.length ? orderLines.slice(0, 6).map((line) => <article className={styles.drawerLine} key={line.id || line.line_number}><div><b>{line.sku || `Línea ${line.line_number}`}</b><span>{line.description}</span></div><strong>{line.quantity} {line.unit}</strong></article>) : <p className={styles.empty}>Todavía no hay materiales en este pedido.</p>}</section>}
